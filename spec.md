@@ -35,11 +35,11 @@ Parameters:
 
 - `P`, even, real samples per pulse
 - `N`, number in `[1,P/4)`, repetition period
-- `M`, number where `gcd(M,2*N)=1`, sequence multiplier
-  - increases frequency separation between adjacent pulses, improves the sound
 - `F`, number in `[0,P/2)`, complex frequency offset
   - the occupied band is `44.1e3*F/P - 44.1e3*(F+2*N)/P` (however that wraps into complex `P/2`-point DFT frequencies...)
   - For high-band signals we need `F,P,N` so that `F+2*N <= P/2`
+- `M`, number where `gcd(M,2*N)=1`, sequence multiplier
+  - increases frequency separation between adjacent pulses, improves the sound
 
 Transmission:
 
@@ -62,7 +62,7 @@ Rewrite our desiredata as linear constraints:
 - Max frequency is 20 kHz: 44.1e3*F + 2*44.1e3*N -20e3*P < 0
 - Min frequency is 16 kHz: -44.1e3*F + 16e3*P < 0
 
-i.e. `[0, 0, 280; 44.1e3, 2*44.1e3, -20e3; -44.1e3, 0, 16e3]*[F;N;P] < [44.1e3, 0, 0]`
+i.e. `[280, 0, 0; -20e3, 2*44.1e3, 44.1e3; 16e3, 0, -44.1e3]*[P;N;F] < [44.1e3, 0, 0]`
 
 We can pick some whole numbers near the optimum:
 

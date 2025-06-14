@@ -10,8 +10,8 @@ import wf
 fname_wf = "rx.wav"
 n_oversample = 4
 missing_data_carrier_penalty = 1e3
-n_spp_os = wf.p["n_spp_re"] * n_oversample
-n_frame_sep_os = wf.p["n_frame_sep"] * n_oversample
+n_spp_os = wf.params["n_spp_re"] * n_oversample
+n_frame_sep_os = wf.params["n_frame_sep"] * n_oversample
 n_winlen = int(2*n_spp_os + n_frame_sep_os)
 n_winshift = n_spp_os
 
@@ -51,7 +51,7 @@ m_data_corr = np.array([
 v_data_lxc = np.zeros_like(v_pilot_corr) # Incoherent correlation with data
 for lag in range(len(v_data_lxc) - n_spp_os):
     lixc = 0
-    for idx_carrier in range(wf.p["n_bits_per_frame"]):
+    for idx_carrier in range(wf.params["n_bits_per_frame"]):
          ixc = m_data_corr[idx_carrier, lag+n_spp_os] / m_data_corr[idx_carrier, lag] # How much energy is in the data carrier relative to the pilot carrier?
          lixc += missing_data_carrier_penalty*np.log(np.clip(np.abs(ixc), 1e-10, 1.0)) # Penalize low energy data carriers
     v_data_lxc[lag] = lixc # Penalize low energy data carriers
@@ -121,7 +121,7 @@ plt.grid(True)
 plt.show()
 
 # Compute and plot STFT of v_rx
-f, t, Zxx = sp.signal.stft(re2cx(v_rx), fs=wf.p["fs"]/2, nperseg=1024, noverlap=512)
+f, t, Zxx = sp.signal.stft(re2cx(v_rx), fs=wf.params["fs"]/2, nperseg=1024, noverlap=512)
 plt.figure(figsize=(42, 6))
 plt.pcolormesh(t, f, np.log10(np.maximum(np.abs(Zxx), 1e-10)), shading='gouraud')
 plt.title('STFT of Received Signal')
