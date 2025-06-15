@@ -38,13 +38,13 @@ Parameters:
 - `F`, number in `[0,P/2)`, complex frequency offset
   - the occupied band is `44.1e3*F/P - 44.1e3*(F+2*N)/P` (however that wraps into complex `P/2`-point DFT frequencies...)
   - For high-band signals we need `F,P,N` so that `F+2*N <= P/2`
-- `M`, number where `gcd(M,2*N)=1`, sequence multiplier
-  - increases frequency separation between adjacent pulses, improves the sound
+- `f(b,t)`, frequency hopping map
+  - intended to increase frequency separation between adjacent pulses and improve the sound slightly
 
 Transmission:
 
 - For each DFT index `f=0,...,P/2` design a real length-`P` pulse: a tone shaped by a Hamming window
-- For bit `b` at timeslot `t=0,1,2,...` transmit a pulse at index `F+[ (N*b + M*t)%(2*N) ]`.
+- For bit `b` at timeslot `t=0,1,2,...` transmit a pulse at index `f(b,t)`
 
 Design outcomes:
 
@@ -69,7 +69,7 @@ We can pick some whole numbers near the optimum:
 - `P = 160`, rate is 275 bps
 - `N = 8`, isi avoidance is 29 ms
 - `F = 57` occupied band is 15.7-20.1 kHz (4.4 kHz)
-- `M = 11` idk 
+- `f(b,t) = (3*t % N) + N*b` idk
 
 ## Design notes
 

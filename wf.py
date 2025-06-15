@@ -6,12 +6,11 @@ import matplotlib.pyplot as plt
 params = { # Waveform parameters
     "fs": 44100,  # Real sample rate (Hz)
     "n_pulse_len_re": 160, # P; length of pulse in real samples
-    "n_repetition_period": 8,  # N; Number of pulses before repeating the frequency hopping sequence
+    "n_hop_sequence_len": 8,  # N; Length of the hopping sequence; after this many hops the hopped BFSK repeats
     "n_freq_offset": 57, # Frequency bin offset (index of a P/2-point complex DFT)
-    "n_seq_jump": 5, # Multiplier for frequency hopping sequence
 }
 
-v_pulse_win = np.hamming(1+params["n_pulse_len_re"])[:-1]  # Window function for real pulse shape
+v_pulse_win = sp.signal.windows.cosine(1+params["n_pulse_len_re"])[:-1]  # Window function for real pulse shape
 def define_pulses(p=params): # Generate real pulse matrix
     n_fft_bins = p["n_pulse_len_re"] // 2
     m_pulses = np.zeros((n_fft_bins, p["n_pulse_len_re"]), dtype=np.float32) # Rows = fft bin, cols = real samples for this pulse frequency location
@@ -23,14 +22,14 @@ def define_pulses(p=params): # Generate real pulse matrix
         m_pulses[idx, :] = v_pulse
     return m_pulses
 
-n_hop_bins = 2*params["n_repetition_period"]
-v_carriers = ((np.arange(n_hop_bins) * params["n_seq_jump"]) % n_hop_bins) + params["n_freq_offset"]
-m_carriers = v_carriers.reshape(2, -1) # Carrier frequency indices for each bit
+v_perm = np.arange(params["n_hop_sequence_len"])*3 % params["n_hop_sequence_len"]
+v_carriers = params["n_freq_offset"] + np.concatenate((v_perm, params["n_hop_sequence_len"]+v_perm))  # Repeat permutation for two sequences
+m_carriers = v_carriers.reshape(2, -1)  # Reshape into two rows for BFSK hopping
 m_pulses = define_pulses()  # Generate the pulse matrix
 
 def modulate_bits(v_bits, m_carriers=m_carriers, m_pulses=m_pulses, p=params): # Modulate bits into real samples
     m_hops = np.array([
-        m_pulses[m_carriers[v_bits[idx_bit], idx_bit % params["n_repetition_period"]], :] 
+        m_pulses[m_carriers[v_bits[idx_bit], idx_bit % params["n_hop_sequence_len"]], :] 
         for idx_bit in range(len(v_bits))
     ], dtype=np.float32)
     return m_hops
@@ -67,13 +66,13 @@ def make_test_wf(m_carriers=m_carriers, m_pulses=m_pulses, p=params): # Create a
     n_samples = 24 * params["n_pulse_len_re"]
 
     # Compute STFT
-    n_fft = 160
-    n_overlap = n_fft // 4
+    n_fft = params["n_pulse_len_re"]
+    n_overlap = n_fft // 4 
     f, t, Zxx = sp.signal.stft(v_sam[:n_samples], 
                         fs=params["fs"],
                         nperseg=n_fft,
                         noverlap=n_overlap,
-                        window='hamming')
+                        window='blackman')
 
     # Plot STFT
     plt.figure(figsize=(24, 8))
