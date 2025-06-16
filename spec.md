@@ -1,9 +1,4 @@
 # bitscream design notes
-$\newcommand{\bps}{\ \mathrm{bits}/\mathrm{sec}}$
-$\newcommand{\Hz}{\ \mathrm{Hz}}$
-$\newcommand{\dB}{\ \mathrm{dB}}$
-$\newcommand{\ms}{\ \mathrm{ms}}$
-$\newcommand{\sinc}{\mathrm{sinc}}$
 
 ## target application
 Real-time physical-layer acoustic cryptographic fingerprint.
@@ -53,11 +48,11 @@ Transmission:
 
 Design outcomes:
 
-- Rate = $f_s/P \bps$
-- Bandwidth = $2 f_s N/P \Hz$
+- Rate = $f_s/P \ \mathrm{bits}/\mathrm{sec}$
+- Bandwidth = $2 f_s N/P \ \mathrm{Hz}$
   - Here we generously ignore the spectral widening from windowing the tones.
   - Notice holding bandwidth fixed, scaling $P$ to $cP$ scales the rate by $1/c$ and dispersion tolerance by $c^2$.
-- isi avoidance = $PN/f_s \ms$
+- isi avoidance = $PN/f_s \ \mathrm{ms}$
   - i.e. the waveform will not reuse the same frequency twice for this period
 
 ### Parameter optimization
@@ -135,10 +130,10 @@ If the params we pick are anywhere close to an idealized channel capacity estima
 - Unsubstantiated guess the channel will have -10 dB SNR per real sample 
 - Unsubstantiated guess the accumulated channel and frequency errors will be encompassed by thinking about uncorrected Doppler up to 2 m/s (4.5 mph). At 343 m/s speed of sound in air this shifts dft bins no more than ~0.6%. 
 - Due to attenuation at band edges and coherence limits it makes sense to consider the capacity after integrating pulses into some complex scalar instead applying the Shannon-Hartley theorem on the raw 22.05 kHz complex samples.
-  - Imagine matched-filtering a received tone that lines up exactly with a DFT bin so that if there were no frequency error, the matched filter output would be 1. With frequency error the correlation will instead be $y = \sinc(\pi x) = \sin(\pi x)/(\pi x)$ where $x$ is the # of DFT bins of frequency error we have. 
+  - Imagine matched-filtering a received tone that lines up exactly with a DFT bin so that if there were no frequency error, the matched filter output would be 1. With frequency error the correlation will instead be $y = \mathrm{sinc}(\pi x) = \sin(\pi x)/(\pi x)$ where $x$ is the # of DFT bins of frequency error we have. 
   - Without frequency error correction, we might ask that our DFT bins to be wide enough that Doppler shift won't affect the correlation by more than $y$. Thus we want $(\text{Doppler shift, Hz}) < x (\text{fft bin width, Hz})$, rearranging, $(\text{fft length}) < x f_s/(\text{Doppler shift, Hz})$, so $(\text{fft length}) < x/(343/341-1)$. 
-  - At 64 real samples (32 complex) $x = 0.188$ so we take -0.25 dB loss due to frequency incoherence. The absolute limit for reliable comms on our symbols asserting we integrate pulses of 64-real-sample symbols is $f_s/(64 \text{symbol rate, Hz}) \log_2(1+10^{(-10 \dB \text{ real sample SNR} + 3 \dB \text{ real samples per complex sample} + 15 \dB \text{ complex samples per symbol} - 0.25 \dB\text{ doppler loss})/10}) = 1928 \bps$.
-  - At 196 real samples (98 complex) $x=0.539$ so we take 2.69 dB loss due to frequency incoherence. The absolute limit here is $794 \bps$.
+  - At 64 real samples (32 complex) $x = 0.188$ so we take -0.25 dB loss due to frequency incoherence. The absolute limit for reliable comms on our symbols asserting we integrate pulses of 64-real-sample symbols is $f_s/(64 \text{symbol rate, Hz}) \log_2(1+10^{(-10 \ \mathrm{dB} \text{ real sample SNR} + 3 \ \mathrm{dB} \text{ real samples per complex sample} + 15 \ \mathrm{dB} \text{ complex samples per symbol} - 0.25 \ \mathrm{dB}\text{ doppler loss})/10}) = 1928 \ \mathrm{bits}/\mathrm{sec}$.
+  - At 196 real samples (98 complex) $x=0.539$ so we take 2.69 dB loss due to frequency incoherence. The absolute limit here is $794 \ \mathrm{bits}/\mathrm{sec}$.
 
 Aerial acoustic communication literature review suggests the limit calculation is extremely optimistic, with inaudible long-distance waveforms achieving ~20 bits/sec using very prominent features (frequency-shift keying, chirp spread spectrum) and sophisticated receivers.
 
