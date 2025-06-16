@@ -4,34 +4,36 @@
 Real-time physical-layer acoustic cryptographic fingerprint.
 Seek to imprint speech in real-time with evidence that it is not AI-generated.
 
-Broadcast a low-bitrate digital-communications audio waveform over a speech so that any sufficiently high-fidelity recording of that speech can recover a payload.
+Broadcast a low-bitrate digital-communications audio waveform over a speech so that a sufficiently high-fidelity recording of that speech can recover a payload.
 The payload: a cryptographic singature of a transcript of the last window of speech.
 
-Dimensional details:
+### Dimensional details
 
 - speech recognition goes transcribing data into a text buffer
-- after every 4 seconds calculate a payload:
-  - 512 bit (64 byte) version:
+- after every 16 words transmit a payload:
+  - 512 bit (64 byte) payload:
     - 48-byte BLS short signature on the last 16 words or numbers, uppercase, stripped of formatting [A-Z0-9]
     - 16-byte salt:
-      - 16*6 bits: first char of last 16 words
+      - 16*6 bits: first char of last 16 words (truncated ASCII `010xxxx - 101xxxx`)
       - 32 bit unix timestamp
-  - 416 bit (52 byte) version:
+  - 416 bit (52 byte) payload:
     - same as above but omit the 16*6 bit = 12 byte transcript part
 
-Assuming 4 words spoken per second (that's pretty fast) we need to send more than 1 signature per 4 seconds, thus we demand >104-128 reliable bits second.
-Using a rate-1/2 code that's >208-256 uncoded bits.
+Assuming 4 words spoken per second (that's pretty fast) we need to send around 1 signature per 4 seconds, thus we demand >104-128 reliable bits second.
+Using a rate-1/2 code that's 208-256 uncoded bits.
 Practically we need headers and frame control so really we want even more.
 
-### challenges
+### shortcomings
 
 - what if it sounds annoying
 - what if our speech recognition is bad/gets words wrong
 - what if they talk too fast and words get dropped
 - what if an attacker/spoofer can find speech with similar sound signature
+- robustness is a challenge. Successful payload recovery is really sensitive to how things are being recorded and the environment (channel nastiness, impulse noise).
 
-## waveform: BFSK
-Parameters:
+## physical-layer waveform: binary frequency-shift keying
+
+### Parameters
 
 - $P$, even, real samples per pulse
 - $N$, number in $[1,P/4)$, repetition period
@@ -41,12 +43,12 @@ Parameters:
 - $f(b,t)$, frequency hopping map
   - intended to increase frequency separation between adjacent pulses and improve the sound slightly
 
-Transmission:
+### Wavefront
 
 - For each DFT index $f=0,...,P/2$ design a real length-$P$ pulse: a tone shaped by a Hamming window
 - For bit $b$ at timeslot $t=0,1,2,...$ transmit a pulse at index $f(b,t)$
 
-Design outcomes:
+### Design outcomes
 
 - Rate = $f_s/P \ \mathrm{bits}/\mathrm{sec}$
 - Bandwidth = $2 f_s N/P \ \mathrm{Hz}$
@@ -71,7 +73,7 @@ We can pick some whole numbers near the optimum:
 - $F = 57$ occupied band is 15.7-20.1 kHz (4.4 kHz)
 - $f(b,t) = (3t \pmod N) + Nb$ idk
 
-## Design notes
+## Channel notes
 
 ### noise 
 We want our signal to live in as narrow a band as possible up near 20 kHz to stay out of the way of speech.
@@ -91,13 +93,13 @@ In this case then after 256 samples a tone's phase might get offset ~45 degrees.
 If we were matched-filtering that tone then the integration would be degraded by 3 dB at the end of the frame.
 Thus we should avoid coherently integrating over anything longer than 256 real samples / ~6 ms.
 
-### waveforms
+### choice of waveform
 We could hop various modulations around in frequency to avoid multipath.
 Classic modulation choices: 
 
 - FSK
 - OOK
-  - more spectrally efficient but sensitive to impulse noise
+  - more spectrally efficient (that is, for the same rate and bandwidth as FSK we'd get 4x as much reverb tolerance) but a lot more sensitive to impulse noise
 - BPSK
   - more sophisticated and technically promising but demod will be very sensitive to many implementation details given our horrible channel.
 
@@ -105,11 +107,11 @@ Classic modulation choices:
 target a 90% transcript success rate
 
 - for small coded ber p, have $(1-p)^n \sim \exp(-np) = \exp(-512p) < 0.9$
-- thus need $p < 2\times 10^{-4}$
-- using a curve for golay (12,24) we need 7 dB or more SNR per coded binary symbol
+- thus need $p < \sim 2\times 10^{-4}$
+- using a curve for golay (12,24) we need 7 dB or more SNR per coded binary symbol. Really we'll probably use an LDPC code./
 - thus assuming awgn + flat channel the limit for our FSK waveform is -14 dB real sample SNR, good
 
-## experimental outcomes so far
+## experimental outcomes
 
 - non-hopped bpsk pulses: `[1 pilot + 4 data pulses per frame]`
   - garbage outcome, couldn't distinguish between pilot and data pulses, hadn't yet realized reverb was so bad
@@ -123,6 +125,7 @@ target a 90% transcript success rate
   - projector speakers tx gets really attenuated above 18 kHz
   - keys center at 5 kHz but make impulse noise all the way up to 20 kHz
   - Plosives and tapping make wideband noise up to 20 kHz
+  - Uncoded FSK does OK here as long as the fairly directive iPhone mic is aimed well
 
 ### outer bounds
 If the params we pick are anywhere close to an idealized channel capacity estimate there's basically no hope to succeed. 
