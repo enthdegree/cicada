@@ -1,28 +1,32 @@
-# bitscream design notes
+# audio-watermark
 
-## target application
 Real-time physical-layer acoustic cryptographic fingerprint.
 Seek to imprint speech in real-time with evidence that it is not AI-generated.
 
-Broadcast a low-bitrate digital-communications audio waveform over a speech so that a sufficiently high-fidelity recording of that speech can recover a payload.
+Play low-bitrate digital-communications audio over a speech so that a sufficiently high-fidelity recording can recover some data payload.
 The payload: a cryptographic singature of a transcript of the last window of speech.
+If we can match the transcript to the signature, and if we trust the signer, then we have evidence the audio wasn't AI
 
-### Dimensional details
+# Application details
 
-- speech recognition goes transcribing data into a text buffer
-- after every 16 words transmit a payload:
-  - 512 bit (64 byte) payload:
-    - 48-byte BLS short signature on the last 16 words or numbers, uppercase, stripped of formatting [A-Z0-9]
-    - 16-byte salt:
-      - 16*6 bits: first char of last 16 words (truncated ASCII `010xxxx - 101xxxx`)
-      - 32 bit unix timestamp
-  - 416 bit (52 byte) payload:
-    - same as above but omit the 16*6 bit = 12 byte transcript part
+## User-side (transmit-side) 
 
-Assuming 4 words spoken per second (that's pretty fast) we need to send around 1 signature per 4 seconds, thus we demand >104-128 reliable bits second.
-Using a rate-1/2 code that's 208-256 uncoded bits.
+- Speech recognition on your phone goes transcribing data into a text FIFO buffer
+- After the buffer collects 16 words, ingest them and transmit a 512-bit (64 byte) frame:
+  - 16-byte plaintext header:
+    - 16*6 bits: first char of the 16 words or numbers (encoded as truncated ASCII; for char `c` encode the last 6 bits of `c-0b0100000`)
+    - 32 bit unix timestamp
+  - 48-byte BLS short signature on the 16 words or numbers, uppercase, stripped of formatting [A-Z0-9]
 
-### shortcomings
+Assuming 4 words spoken per second (that's pretty fast) we need to send around 1 signature per 4 seconds, thus we demand 128 reliable physical-layer bits second.
+Using a rate-1/2 code that's 256 code-bits.
+
+## Listener-side (receive-side)
+The listener receives a recording of speech that has user signature packets in it, knowing the signer's public key.
+From this recording the listener recovers all the data packets and a transcription of the speech.
+The listener checks segments of the transcript to see ifi they match the signatures in the data packet.
+
+# Challenges
 
 - what if it sounds annoying
 - what if our speech recognition is bad/gets words wrong
@@ -30,18 +34,9 @@ Using a rate-1/2 code that's 208-256 uncoded bits.
 - what if an attacker/spoofer can find speech with similar sound signature
 - robustness is a challenge. Successful payload recovery is really sensitive to how things are being recorded and the environment (channel nastiness, impulse noise).
 
-### prior work 
-It would be nice to use the [quiet modem](https://quiet.github.io/docs/org.quietmodem.Quiet/) instead of rolling our own waveform. 
-Indeed it already includes [profiles](https://github.com/quiet/quiet-js/blob/master/quiet-profiles.json) very similar to our target: `ultrasonic-fsk-robust` is 8-FSK around 19 kHz with rate-1/2 FEC. 
-It's unclear what bit rate is achieved and would take effort to pull our design in (frequency hopping, different FEC, different frame format). 
-Given how simple the waveform proposed here is, the simplest approach seems to me to be to build it standalone and merge it into the quiet modem later if there is interest.
+# Physical-layer waveform: hopped frequency-shift keying
 
-Aerial acoustic communication literature review suggests inaudible long-distance waveforms achieve ~20 bits/sec using very prominent features (frequency-shift keying, chirp spread spectrum) and sophisticated waveform designs.
-We aim for 10x this rate but may have at our disposal a nicer channel: communication beyond ~10 m is an unlikely use case. 
-
-## proposed physical-layer waveform: hopped frequency-shift keying
-
-### Parameters
+## Parameters
 
 - $M$, FSK order in bits
 - $P$, even, real samples per pulse
@@ -51,13 +46,13 @@ We aim for 10x this rate but may have at our disposal a nicer channel: communica
 - $f$, frequency hopping map, range is indices in the occupied band
   - intended to increase frequency separation between adjacent pulses and improve the sound slightly
 
-### Wavefront
+## Modulation
 
-- For each DFT index $f=0,...,P/2$ design a real length-$P$ pulse: a tone shaped by the window
-- For uncoded symbol $d=1,\dots,2^M$ at timeslot $t=0,1,2,...$ transmit a pulse at index $f(d,t)$
+- For each DFT index $f=0,...,P/2$ design a real length-$P$ pulse as so: a tone shaped by the window
+- For bit $d=1,\dots,2^M$ at timeslot $t=0,1,2,...$ transmit the pulse at index $f(d,t)$
 - Send data in blocks of $\lceil 1024/M \rceil$ pulses.
 
-### Design outcomes
+## Design outcomes
 
 - Approximate uncoded bit rate = $M f_s/P \ \mathrm{bits}/\mathrm{sec}$
 - Occupied band = $f_s \cdot F/P$ to $f_s \cdot (F+2^M N)/P$ 
@@ -67,7 +62,7 @@ We aim for 10x this rate but may have at our disposal a nicer channel: communica
 - isi avoidance = $PN/f_s \ \mathrm{ms}$
   - i.e. $f$ can be designed so that the waveform will not occupy any frequency twice during this period
 
-### Choice of parameters
+## Choice of parameters for our application
 Our desiredata form linear constraints and a quadratic objective:
 
 - At least 280 uncoded bits per second: $280 P < f_s M $
@@ -75,36 +70,35 @@ Our desiredata form linear constraints and a quadratic objective:
 - Min frequency is 19 kHz: $-f_s F + 19\times 10^3 P < 0$
 - Maximum isi avoidace possible given these constraints: $\text{maximize } PN$
 
-For various $M we can pick some whole numbers near the optimum, all 275 bps and occupying 19.0-20.1 kHz (1.1 kHz):
+For various $M$ we can pick some whole numbers near the optimum, all 275 bps and occupying 19.0-20.1 kHz (1.1 kHz):
 
 - $M=1, [P,N,F] = [160,2,69]$, isi avoidance is 7 ms
 - $M=2, [P,N,F] = [320,2,138]$, isi avoidance is 14 ms
 - $M=3, [P,N,F] = [640,2,276]$, isi avoidance is 29 ms
 
-The bottom two are beyond the limits of the frequency resolution we estimate is available below.
-Doubling $N$ might help this if the speaker and mic are not too attenuated at 21.2 kHz. 
+The bottom two are beyond the limits of the available frequency resolution we guessed below.
+So we pick $M=1$.
 
-## Channel notes
+# Channel design notes
 
-### noise 
+## Noise 
 We want our signal to live in as narrow a band as possible up near 20 kHz to stay out of the way of speech.
-Impulse noise is everywhere and extremely damaging. A clap lasts ~100 ms.
+Impulse noise is everywhere. A clap lasts ~100 ms.
 
-### reverberation / echos / dispersion / multipath
+## Reverberation / echos / dispersion / multipath
 Our channels are extremely temporally dispersive to the point where there is not really hope of simple correction.
-It seems typical there be more reflected paths than you would really want to keep track of, let alone at bad SNR.
+It is typical there are more reflected paths than you would really want to keep track of, let alone at bad SNR.
 Sending out a regular short pilot pulse, in the receiver's cross-correlation the comb of intended peaks is drowned by a sea of echos.
-Scrolling through some spectral measurements on a public dataset (https://mcdermottlab.mit.edu/Reverb/SurveyData.html) it seems like reverberations above 16 kHz mostly die off by 100 ms if you're lucky.
+Scrolling through some spectral measurements on a public dataset (https://mcdermottlab.mit.edu/Reverb/SurveyData.html) it looks like reverberations above 16 kHz mostly die off by 100 ms if you're lucky.
 
-### coherence & frequency error
+## Coherence & frequency error
 The top half of the band, where we need our signal to live, spans 2-4 cm wavelength.
 Concievably the tx and rx can move around that distance within 50 ms (i.e. ~2 mph).
-There's probably some tx/rx clock drift too. 
 In this case then after 256 samples a tone's phase might get offset ~45 degrees.
-If we were matched-filtering that tone then the integration would be degraded by 3 dB at the end of the frame.
+If we were matched-filtering that tone then the integrated signal would be degraded by 3 dB at the end of the frame.
 Thus we should really worry about coherently integrating much longer than 256 real samples / ~6 ms.
 
-### choice of waveform
+# Waveform design notes
 We could hop various modulations around in frequency to avoid multipath.
 Classic modulation choices: 
 
@@ -114,7 +108,9 @@ Classic modulation choices:
 - BPSK
   - more sophisticated and technically promising but demod will be very sensitive to many implementation details given our horrible channel.
 
-### block coding
+The best bet right now seems to be FSK.
+
+## Block coding
 target a 90% transcript success rate
 
 - for small coded ber p, have $(1-p)^n \sim \exp(-np) = \exp(-512p) < 0.9$
@@ -122,10 +118,10 @@ target a 90% transcript success rate
 - using a curve for golay (12,24) we need 7 dB or more SNR per coded binary symbol. Really we'll aim for an LDPC code.
 - thus assuming awgn + flat channel the limit for our FSK waveform is -14 dB real sample SNR, good
 
-## experimental outcomes
+## Experimental outcomes
 
 - non-hopped bpsk pulses: `[1 pilot + 4 data pulses per frame]`
-  - garbage outcome, couldn't distinguish between pilot and data pulses, hadn't yet realized reverb was so bad
+  - garbage outcome, couldn't distinguish between pilot and data pulses
 - ofdm-like pulse-pairs: `[96 sam training pulse, 96 sam data pulse, 64 sam guard interval]`
   - training is a sum of training carriers
   - data is the same, except the sign of the training carriers are flipped depending on data
@@ -138,17 +134,28 @@ target a 90% transcript success rate
   - Plosives and tapping make wideband noise up to 20 kHz
   - Uncoded FSK does OK here as long as the fairly directive iPhone mic is aimed well
 
-### outer bounds
+## Outer bounds
 If the params we pick are anywhere close to an idealized channel capacity estimate there's basically no hope to succeed. 
 
 - Unsubstantiated guess the channel will have -10 dB SNR per real sample 
 - Unsubstantiated guess the accumulated channel and frequency errors will be encompassed by thinking about uncorrected Doppler up to 2 m/s (4.5 mph). At 343 m/s speed of sound in air this shifts dft bins no more than ~0.6%. 
-- We really want our signal to live near the top edge of the band so it makes more sense to approximate channel capacity past the point of integrating pulses instead applying the Shannon-Hartley theorem on the whole 22.05 kHz complex baseband.
+- We've decided on pulse processing so it makes more sense to approximate channel capacity after integrating pulses.
   - Imagine matched-filtering a received tone that lines up exactly with a DFT bin so that if there were no frequency error, the matched filter output would be 1. With frequency error the correlation will instead be $y = \mathrm{sinc}(\pi x)$ where $x$ is the # of DFT bins of frequency error we have. 
-  - Without frequency error correction, we might ask that our DFT bins to be wide enough that Doppler shift won't affect the correlation by more than $y$. Thus we want $(\text{Doppler shift, Hz}) < x \times (\text{dft bin width, Hz})$, rearranging, $(\text{dft length}) < x f_s/(\text{Doppler shift, Hz})$, so $(\text{dft length}) < x/(343/341-1)$. 
-  - At 64 real samples (32 complex) $x = 0.188$ so we take -0.25 dB loss due to frequency incoherence. The absolute limit for reliable comms on our symbols asserting we integrate pulses of 64-real-sample symbols is:
+  - Without frequency error correction, we might ask that our DFT bins to be wide enough that Doppler shift won't affect the correlation by more than multiplicative factor $y$. Thus we want $(\text{Doppler shift, Hz}) < x \times (\text{dft bin width, Hz})$, rearranging, $(\text{dft length}) < x f_s/(\text{Doppler shift, Hz})$, so $(\text{dft length}) < x/(343/341-1)$. 
+  - At 64 real samples (32 complex) $x = 0.188$ so we take 0.25 dB loss due to frequency incoherence. The absolute limit for reliable comms on our symbols asserting we integrate pulses of 64-real-sample symbols is:
   $$f_s/(64 \text{ symbol rate, Hz}) \log_2\left(1+10^{\frac{1}{10} \times -10 \ \mathrm{dB} \text{ real sample SNR} + 3 \ \mathrm{dB} \text{ real samples per complex sample} + 15 \ \mathrm{dB} \text{ complex samples per symbol} - 0.25 \ \mathrm{dB}\text{ doppler loss}}\right) = 1928 \ \mathrm{bits}/\mathrm{sec}.$$
   - At 196 real samples (98 complex) $x=0.539$ so we take 2.69 dB loss due to frequency incoherence. The absolute limit here is $794 \ \mathrm{bits}/\mathrm{sec}$.
 
 The parameters we picked above are 8-10 dB beneath estimated capacity.
 Hopefully enough of a gap to be safe given our extreme non-idealities and band-limits.
+
+## Prior work 
+This is not a unique idea... people are working on similar things for images. (todo: find reference to this)
+
+It would be nice to use the [quiet modem](https://quiet.github.io/docs/org.quietmodem.Quiet/) instead of rolling our own waveform. 
+It includes [profiles](https://github.com/quiet/quiet-js/blob/master/quiet-profiles.json) very similar to our target: `ultrasonic-fsk-robust` is 8-FSK around 19 kHz with rate-1/2 FEC. 
+It's unclear what bit rate is achieved and would take effort to pull our design in (frequency hopping, different FEC, different frame format). 
+Given how simple the waveform proposed here is, the simplest approach seems to me to be to build it standalone and merge it into the quiet modem later if there is interest.
+
+Aerial acoustic communication literature review suggests inaudible long-distance waveforms achieve ~20 bits/sec using very prominent features (frequency-shift keying, chirp spread spectrum) and sophisticated waveform designs.
+We aim for 10x this rate but may have better channel conditions: communication beyond ~10 m is an unlikely use case. 
