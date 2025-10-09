@@ -1,0 +1,176 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>FSK+LDPC Zero Frame Player</title>
+  </head>
+  <body>
+    <header>
+      <h1 style="margin:0">LDPC-coded zeros → hopped FSK (n=1024, k=512)</h1>
+    </header>
+    <main>
+      <fieldset>
+        <legend>Playback</legend>
+        <div class="row">
+          <label>Period (s) <input id="period" type="number" min="1" step="0.1" value="5"></label>
+          <button id="start" class="primary">Start</button>
+          <button id="stop">Stop</button>
+          <div class="grow"></div>
+          <div class="muted">AudioContext sample rate: <span id="sr">—</span> Hz</div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Waveform parameters</legend>
+        <div class="grid">
+          <label>Bits per symbol, M
+            <select id="M">
+              <option value="1" selected>1 (2-FSK)</option>
+              <option value="2">2 (4-FSK)</option>
+              <option value="3">3 (8-FSK)</option>
+            </select>
+          </label>
+          <label>Samples per symbol, P <input id="P" type="number" min="32" step="1" value="160"></label>
+          <label>Repetition period, N <input id="N" type="number" min="1" step="1" value="2"></label>
+          <label>Start bin, F <input id="F" type="number" min="0" step="1" value="69"></label>
+          <label>Window
+            <select id="win">
+              <option value="hann" selected>Hann</option>
+              <option value="rect">Rectangular</option>
+            </select>
+          </label>
+        </div>
+        <div class="muted" id="derived">—</div>
+        <div class="row" style="margin-top:.5rem">
+          <button id="apply">Apply waveform</button>
+          <button id="audible">Make band audible (toggle)</button>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Status</legend>
+        <div id="log" style="white-space: pre-wrap;"></div>
+      </fieldset>
+    </main>
+
+    <script type="module">
+      import { Encoder1024R12 } from '../ldpc/ldpc_encoder.js';
+      import { FSKWaveformJS } from '../fsk/fsk.js';
+
+      // --- UI helpers ---
+      const $ = (id)=>document.getElementById(id);
+      const log = (m)=>{ const el=$('log'); el.textContent = (el.textContent?el.textContent+'\n':'') + m; };
+
+      // --- Player ---
+      class Player {
+        constructor(ctx){
+          this.ctx = ctx || new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 44100 });
+          this.enc = new Encoder1024R12(); // n=1024,k=512 fixed
+          this.params = { M:1, P:160, N:2, F:69, fs: this.ctx.sampleRate, window:'hann' };
+          this.fsk = new FSKWaveformJS(this.params);
+          this.periodSec = 5;
+          this.timer = null;
+          $('sr').textContent = String(this.ctx.sampleRate);
+          this.refreshDerived();
+        }
+        refreshDerived(){
+          const {M,P,N,F,fs} = this.params;
+          const Q = 1<<M;
+          const f0 = fs * F / P;
+          const f1 = fs * (F + Q*N) / P;
+          const bw = f1 - f0;
+          const br_uncoded = M * fs / P; // bits/s (uncoded)
+          $('derived').innerHTML =
+            `Occupied band: <b>${f0.toFixed(1)}</b> Hz → <b>${f1.toFixed(1)}</b> Hz &nbsp; (BW ≈ ${bw.toFixed(1)} Hz) &nbsp; · &nbsp; ` +
+            `Uncoded rate ≈ <b>${br_uncoded.toFixed(1)}</b> bits/s`;
+        }
+        setWaveformParams(p){
+          // Validate: F + 2^M*N <= floor(P/2)
+          const Q = 1<<p.M;
+          const ny = Math.floor(p.P/2);
+          if (p.F + Q*p.N > ny) throw new Error(`Occupied band exceeds Nyquist: F+2^M*N = ${p.F + Q*p.N}, P/2 = ${ny}`);
+          this.params = { ...p, fs: this.ctx.sampleRate };
+          this.fsk = new FSKWaveformJS(this.params);
+          this.refreshDerived();
+        }
+        frameZeros(){
+          const u = new Uint8Array(this.enc.K); // zeros
+          const cw = this.enc.encode(u);        // 1024 bits
+          return this.fsk.modulateBits(cw);     // Float32 PCM
+        }
+        playOnce(){
+          const s = this.frameZeros();
+          const buf = this.ctx.createBuffer(1, s.length, this.ctx.sampleRate);
+          buf.copyToChannel(s, 0);
+          const src = this.ctx.createBufferSource();
+          src.buffer = buf;
+          src.connect(this.ctx.destination);
+          src.start();
+        }
+        start(){
+          if (this.timer) return;
+          this.playOnce();
+          this.timer = setInterval(()=>this.playOnce(), this.periodSec*1000);
+        }
+        stop(){ if (this.timer) { clearInterval(this.timer); this.timer = null; } }
+      }
+
+      const player = new Player();
+
+      // --- Wire up UI ---
+      $('start').addEventListener('click', async ()=>{
+        await player.ctx.resume();
+        player.periodSec = Number($('period').value || 5);
+        player.start();
+        log('Started');
+      });
+      $('stop').addEventListener('click', ()=>{
+        player.stop();
+        log('Stopped');
+      });
+
+      function readParams(){
+        return {
+          M: Number($('M').value),
+          P: Number($('P').value),
+          N: Number($('N').value),
+          F: Number($('F').value),
+          window: $('win').value,
+          fs: player.ctx.sampleRate
+        };
+      }
+      $('apply').addEventListener('click', ()=>{
+        try {
+          const p = readParams();
+          player.setWaveformParams(p);
+          log(`Applied waveform: M=${p.M}, P=${p.P}, N=${p.N}, F=${p.F}, window=${p.window}`);
+        } catch (e) {
+          log('❌ ' + e.message);
+        }
+      });
+
+      // Toggle an audible band (approx 2–4 kHz) for sanity checks; toggles F while preserving others
+      let audible = false;
+      $('audible').addEventListener('click', ()=>{
+        const p = readParams();
+        audible = !audible;
+        if (audible) {
+          // choose a low F that keeps the band within 2–4 kHz
+          const Q = 1<<p.M;
+          // center around 3 kHz -> pick F so mid ≈ 3000 Hz
+          const mid_bin = Math.round((3000 * p.P) / player.ctx.sampleRate);
+          const span = Math.round((Q*p.N)/2);
+          p.F = Math.max(0, mid_bin - span);
+        } else {
+          p.F = Number($('F').value); // revert to UI value
+        }
+        try {
+          player.setWaveformParams(p);
+          log(`Audible ${audible ? 'ON' : 'OFF'} — F set to ${p.F}`);
+        } catch (e) {
+          log('❌ ' + e.message);
+        }
+      });
+    </script>
+  </body>
+</html>

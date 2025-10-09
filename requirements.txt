@@ -1,4 +1,3 @@
 numpy
+soundfile
 scipy
-matplotlib
-librosa 
