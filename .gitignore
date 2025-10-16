@@ -4,6 +4,9 @@ refs/
 *.wav
 *.m4a
 *.flac
+*.zip
+*.csv
+archive/
 
 # Created by https://www.toptal.com/developers/gitignore/api/emacs,linux,windows,osx,microsoftoffice,latex,python,vim,vi
 # Edit at https://www.toptal.com/developers/gitignore?templates=emacs,linux,windows,osx,microsoftoffice,latex,python,vim
