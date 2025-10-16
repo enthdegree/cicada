@@ -81,7 +81,7 @@ The application motivates choice of parameters:
 - Number of samples per pulse, $n_{\text{spp}} = f_s/f_{\text{sym}}$ should be a whole number to make modulation easy. 
 - To meet the data rate requirement for our application we need $Bf_{\text{sym}} \geq 256.$
 - Symbols at each time period should be as distinguishable as possible. For some SNR $x$ say $w_x$ is the number of $n_{\text{spp}}$-point fft bins that contain all but some fraction $x$ of the pulse window function's energy.[2] Picking $f_{\text{bw}}{2^{B+1}}>w_x$ gives the waveform an SNR ceiling of $x$. 
-- Pulse parameters should be chosen to reduce inter-symbol interference (ISI). We can write the minimum separation in index between a pulse now and a pulse some $k$ time indices in the future as: $d_k=\min_t |(pt \bmod s) - (p(t+k) \bmod s)|.$ Those pulse's center frequencies are separated by no less than $b_k = \frac{d_k f_{\text{bw}}{s 2^B f_{\text{sym}}}$ frequency bins. When $k,p<s$ then $d_k=\min(kp\bmod s, s-(kp\bmod s)).$ One should ensure that each $b_k,\ k=1,\dots K$ is large enough that ISI is avoided.[3] 
+- Pulse parameters should be chosen to reduce inter-symbol interference (ISI). We can write the minimum separation in index between a pulse now and a pulse some $k$ time indices in the future as: $d_k=\min_t |(pt \bmod s) - (p(t+k) \bmod s)|.$ Those pulse's center frequencies are separated by no less than $b\_k = \frac{d\_k f\_{\text{bw}}}{s 2^B f\_{\text{sym}}}$ frequency bins. When $k,p<s$ then $d_k=\min(kp\bmod s, s-(kp\bmod s)).$ One should ensure that each $b_k,\ k=1,\dots K$ is large enough that ISI is avoided.[3] 
 - Demodulator synchronization motivates choice of large $s$ and $p$ coprime from $s$.
 
 $[B=1,f_{\text{sym}}=344.5,s=63,p=16,f_c=18.3\text{ kHz},f_{\text{bw}}=3\text{ kHz}]$ yields $n_{\text{spp}}=128$ and $b_k > 1$ for $k=1,2,3$.
@@ -101,9 +101,9 @@ We aim for 10x this rate but may have better channel conditions: communication b
 
 # Notes and references 
 
-[1]: https://mcdermottlab.mit.edu/Reverb/SurveyData.html 
-[2]: For a periodic Hann window, $w_{-10\text{ dB}}= \sim 1.9, \ w_{-20 \text{ dB}}=\sim 2.45$
-[3]: Borrowing $w_x$ from the previous point, consider designing for a high-SNR high-ISI case where $4$ past pulses present in current samples with at least $3$ dB attenuation. Picking parameters that yield $b_k > w_{-16 \text{ dB}},\ k=1,2,3,4$, then the SNR will drop to no worse than 10 dB due to ISI.
-[4]: https://bowers.cornell.edu/news-stories/hiding-secret-codes-light-protects-against-fake-videos
-[5]: Quiet modem here: https://quiet.github.io/docs/org.quietmodem.Quiet/ ; Quiet reliable profiles here: https://github.com/quiet/quiet-js/blob/master/quiet-profiles.json
-[6]: Lee et. al. "Chirp signal-based aerial acoustic communication for smart devices" here: https://ieeexplore.ieee.org/abstract/document/7218629
+- [1]: https://mcdermottlab.mit.edu/Reverb/SurveyData.html 
+- [2]: For a periodic Hann window, $w_{-10\text{ dB}}= \sim 1.9, \ w_{-20 \text{ dB}}=\sim 2.45$
+- [3]: Borrowing $w_x$ from the previous point, consider designing for a high-SNR high-ISI case where $4$ past pulses present in current samples with at least $3$ dB attenuation. Picking parameters that yield $b_k > w_{-16 \text{ dB}},\ k=1,2,3,4$, then the SNR will drop to no worse than 10 dB due to ISI.
+- [4]: https://bowers.cornell.edu/news-stories/hiding-secret-codes-light-protects-against-fake-videos
+- [5]: Quiet modem here: https://quiet.github.io/docs/org.quietmodem.Quiet/ ; Quiet reliable profiles here: https://github.com/quiet/quiet-js/blob/master/quiet-profiles.json
+- [6]: Lee et. al. "Chirp signal-based aerial acoustic communication for smart devices" here: https://ieeexplore.ieee.org/abstract/document/7218629
