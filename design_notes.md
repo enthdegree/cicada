@@ -101,7 +101,7 @@ We aim for 10x this rate but may have better channel conditions: communication b
 
 # Notes and references 
 
-- [1]: https://mcdermottlab.mit.edu/Reverb/SurveyData.html 
+- [1]: Traer and McDermott 2016, "Statistics of natural reverberation enable perceptual separation of sound and space" here: https://mcdermottlab.mit.edu/Reverb/SurveyData.html 
 - [2]: For a periodic Hann window, $w_{-10\text{ dB}}= \sim 1.9, \ w_{-20 \text{ dB}}=\sim 2.45$
 - [3]: Borrowing $w_x$ from the previous point, consider designing for a high-SNR high-ISI case where $4$ past pulses present in current samples with at least $3$ dB attenuation. Picking parameters that yield $b_k > w_{-16 \text{ dB}},\ k=1,2,3,4$, then the SNR will drop to no worse than 10 dB due to ISI.
 - [4]: https://bowers.cornell.edu/news-stories/hiding-secret-codes-light-protects-against-fake-videos
