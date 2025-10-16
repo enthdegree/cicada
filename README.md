@@ -2,6 +2,4 @@
 
 Let's acoustically imprint speech in real-time with evidence that it is not AI-generated.
 
-Play low-bitrate digital-communications audio over a speech so that a sufficiently high-fidelity recording can recover some data payload.
-The payload: a cryptographic singature of a transcript of the last window of speech.
-If we can match the transcript to the signature, and if we trust the signer, then we have evidence the audio wasn't AI
+We'll listen for a transcript of the last window of the speech, sign it, then transmit an acoustic data frames so that any sufficiently high-fidelity audio recording can recover and validate the signature: if we can match the transcript to the signature, and if we trust the signer, then we have some evidence the audio wasn't AI.
