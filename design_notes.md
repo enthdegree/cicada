@@ -7,10 +7,10 @@ One runs this on, say, a cell phone browser to sign audio in near-realtime.
 
 - Speech recognition on your phone goes transcribing data into a text FIFO buffer
 - After the buffer collects 16 words, ingest them and transmit a 512-bit (64 byte) payload:
-- 128-bit plaintext header:
-- 16*6 bits: first char of the 16 words or numbers (encoded as truncated ASCII; for char `c` encode the last 6 bits of `c-0b0100000`)
-- 32 bit unix timestamp
-- 384-bit BLS short signature on the 16 words or numbers, uppercase, stripped of formatting [A-Z0-9]
+	- 128-bit plaintext header:
+		- 16*6 bits: first char of the 16 words or numbers (encoded as truncated ASCII; for char `c` encode the last 6 bits of `c-0b0100000`)
+		- 32 bit unix timestamp
+	- 384-bit BLS short signature on the 16 words or numbers, uppercase, stripped of formatting [A-Z0-9]
 
 The 512-bit payload will be coded to a rate-1/2 LDPC codeword to a frame of 1024 coded bits.
 Assuming 4 words spoken per second (that's pretty fast) a frame is produced once per 4 seconds. 
