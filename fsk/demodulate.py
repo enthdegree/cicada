@@ -5,11 +5,11 @@ from numpy.lib.stride_tricks import as_strided
 from .waveform import FSKWaveform
 
 @dataclass 
-class DemodConfig:
-	symbols_per_frame: int = 1024 # number of coded symbols per frame
-	frame_search_win: float = 1.5 # search window length in # of frames
-	frame_search_win_step: float = 0.4 # search window shift length in # of frames
-	pulse_frac: int = 8 # fraction of a pulse to use in pulse search
+class DemodParameters:
+	symbols_per_frame: int = 1024, # number of coded symbols per frame
+	frame_search_win: float = 1.5, # search window length in # of frames
+	frame_search_win_step: float = 0.4, # search window shift length in # of frames
+	pulse_frac: int = 8, # fraction of a pulse to use in pulse search
 
 class DemodResult:
 	start_sample: int # Audio sample where this frame started 
@@ -20,9 +20,8 @@ class FSKDemodulator:
 	"""Pulse bank demodulator for FSKWaveform
 	"""
 
-	def __init__(self, cfg: DemodConfig, wf: FSKWaveform):
-		self.wf = wf
-		self.cfg = cfg
+	def __init__(self, cfg: DemodParameters = DemodParameters(), wf: FSKWaveform = FSKWaveform()):
+		self.__dict__.update(cfg.__dict__)
 	
 	@staticmethod 
 	def _hankel(x: np.ndarray, win: int, step: int = 1) -> np.ndarray:
@@ -48,7 +47,7 @@ class FSKDemodulator:
 		likelihoods according to the hopping pattern.
 		Returns (mod_order, spf)."""
 		spf = self.symbols_per_frame
-		pfrac = self.cfg.pulse_frac
+		pfrac = self.pulse_frac
 		last_col = start + (spf-1)*pfrac
 		if Ep.shape[1] < last_col:
 			raise ValueError(f"Tried to search Ep forward to {last_col} but Ep.shape[1]={Ep.shape[1]}")
@@ -71,7 +70,7 @@ class FSKDemodulator:
 		the max-likelihood frame energy assuming it started at col `start` of Ep.
 		"""
 		sym_per_f = self.symbols_per_frame
-		pfrac = self.cfg.pulse_frac
+		pfrac = self.pulse_frac
 		n_off = np.floor( Ep.shape[1] / (sym_per_f*pfrac) )*(sym_per_f*pfrac)+1
 		Ef = np.empty(n_off)
 		for ic in range(n_off):
@@ -83,13 +82,13 @@ class FSKDemodulator:
 		"""Search for and demodulate frames in a sample vector.
 		"""
 		
-		pfrac = self.cfg.pulse_frac
+		pfrac = self.pulse_frac
 		step = int(round(self.wf.samples_per_pulse // pfrac))
 		Ep = self.pulse_energy_map(x, step=step) 
 		Ef = self.frame_energy_map(Ep) 
-		spf = self.cfg.symbols_per_frame
-		win_len_cols = int(round(self.cfg.frame_search_win * spf * pfrac))
-		win_step_cols = int(round(self.cfg.frame_search_win_step * spf * pfrac))
+		spf = self.symbols_per_frame
+		win_len_cols = int(round(self.frame_search_win * spf * pfrac))
+		win_step_cols = int(round(self.frame_search_win_step * spf * pfrac))
 		l_dr = []
 		for s in range(0, max(0, len(Ef) - win_len_cols + 1), win_step_cols):
 			start = s + np.argmax(Ef[s:s+win_len_cols])
