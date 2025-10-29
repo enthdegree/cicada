@@ -1,7 +1,7 @@
-from .waveform import FSKParams, FSKWaveform
-from .demod import FSKDemodulator, DemodConfig, DemodResult
+from .waveform import FSKParameters, FSKWaveform
+from .demodulate import FSKDemodulator, FSKDemodulatorParameters, FSKDemodulatorResult
 
 __all__ = [
-    "FSKParams", "FSKWaveform",
-    "FSKDemodulator", "DemodConfig", "DemodResult"
+    "FSKParameters", "FSKWaveform",
+    "FSKDemodulator", "FSKDemodulatorParameters", "FSKDemodulatorResult"
 ]

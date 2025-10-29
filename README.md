@@ -11,11 +11,10 @@ Underpinnings:
 - `fsk/` Physical-layer acoustic waveform
 	- `fsk/waveform.py` Python defining the audio waveform and its modulation
 	- `fsk/demodulate.py` Python demodulator for recordings
-	- `fsk/waveform.js` Javascript re-implementation of waveform.py with one difference: waveform.js creates pulses with peak value 0.95 and waveform.py creates pulses with unit sample average power.
 - `ldpc/` LDPC code definition 
 	- `ldpc.py` Python rate-1/2 LDPC modulator and demodulator
-	- `ldpc.js` An equivalent LDPC modulator in Javascript
 - `bls/` BLS API (todo)
+- pycodec2
 
 
 # Todo
@@ -23,13 +22,22 @@ Underpinnings:
 - waveform.js + demodulate.py unit test
 - ldpc.js + ldpc.py unit test: ber curve
 - bls.js + bls.py unit test
-- sign.html
-	- we have a text box being populated with iphone speech recognition 
+- sign_codec2.py
 	- main loop: 
-		- every 4 seconds eat the last 16 words of the text box,
+		- continuously encode the last block of audio into codec2/450 bps 
 		- make_frame() pack those 16 words into a frame as described in design_notes.md
 		- play the frame as audio
-- verify.py (signed_recording.wav + transcript.txt ---> frames.csv, transcript_annotated.txt)
+- verify_codec2.py (signed_recording.wav ---> decoding.wav, annotation.txt)
+	- find all the frames in signed_recording.wav 
+	- subsample the found frames to ones that occur at reasonable frame spacing
+	- decode each group of frames into a list of (codec2 stream) + (signature) + (header data) packets
+	- produce decoding.wav, decoding.csv with timestamp, verification outcome, header data
+- sign_transcript.py
+	- main loop: 
+		- every 4 seconds collect the last 16 words
+		- make_transcript_frame() pack those 16 words into a frame as described in design_notes.md
+		- play the frame as audio
+- verify_transcript.py (signed_recording.wav + transcript.txt ---> frames.csv, transcript_annotated.txt)
 	- find all the frames in signed_recording.wav and write them to frames.csv
 	- for each frame, use the header to match it to the transcript. 
 		- for each match to this frame (if any), annotate the transcript with a reference to this frame 
