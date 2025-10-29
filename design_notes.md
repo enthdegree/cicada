@@ -84,7 +84,7 @@ The application motivates choice of parameters:
 - Parameters should be chosen to reduce inter-symbol interference (ISI). In practice this means pulses in the future should avoid parts of the band that were used recently. We can write the minimum separation in index between a pulse now and a pulse some $k$ time indices in the future as: $d_k=\min_t |(pt \bmod s) - (p(t+k) \bmod s)|.$ Those pulse's center frequencies are separated by no less than $b\_k = \frac{d\_k f\_{\text{bw}}}{s 2^B f\_{\text{sym}}}$ frequency bins. When $k,p<s$ then $d_k=\min(kp\bmod s, s-(kp\bmod s)).$ The first few of $b_1,b_2,b_3,\dots$ should be large long enough that ISI is avoided.[4] 
 - Demodulator synchronization motivates choice of large $s$ and $p$ coprime from $s$.
 
-$[B=1,f_{\text{sym}}=344.5,s=63,p=16,f_c=18.3\text{ kHz},f_{\text{bw}}=3\text{ kHz}]$ yields $n_{\text{spp}}=128$ and $b_k > 1$ for $k=1,2,3$.
+$[B=1,f_{\text{sym}}=344.5,s=63,p=16,f_c=18.5\text{ kHz},f_{\text{bw}}=3\text{ kHz}]$ yields $n_{\text{spp}}=128$ and $b_k > 1$ for $k=1,2,3$.
 
 # Prior work 
 
