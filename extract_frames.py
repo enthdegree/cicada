@@ -1,23 +1,15 @@
 #!/usr/bin/env python3
 import sys, csv, numpy as np
 from fsk.demodulate import FSKDemodulator, FSKDemodulatorParameters
-from fsk.waveform import FSKWaveform, FSKParameters, default_mod_table
-from functools import partial
-
-wfp = FSKParameters(
-	symbol_rate_Hz=344.53125,
-	hop_factor=16,
-	mod_table_fn=partial(default_mod_table, pattern=7),
-	)
-wf = FSKWaveform(wfp)
+import frame
 
 demod_params = FSKDemodulatorParameters(
-	pulse_frac=32,
-	frame_search_win = 1.5,
-	frame_search_win_step = 1.5/3,
-	symbols_per_frame=1026
+	pulse_frac=16,
+	frame_search_win = 1.6,
+	frame_search_win_step = 0.4,
+	symbols_per_frame=frame.k
 	)
-demod = FSKDemodulator(cfg=demod_params, wf=wf)
+demod = FSKDemodulator(cfg=demod_params, wf=frame.wf)
 
 def load_wav(path):
 	try:
@@ -50,17 +42,16 @@ def main():
 	
 	with open(out_csv, "w", newline="") as f:
 		w = csv.writer(f)
-		w.writerow(["frame_start_sample_idx","bits","ascii"])
+		w.writerow(["frame_start_sample_idx","ascii"])
 		for iframe in range(len(frames[0])):
 			print(f'Decoding frame {iframe+1} of {len(frames[0])}')
-			print(f'Location: {frames[0][iframe].start_sample} ({frames[0][iframe].start_sample/wf.fs_Hz} s)')
+			print(f'Location: {frames[0][iframe].start_sample} ({frames[0][iframe].start_sample/frame.wf.fs_Hz} s)')
 			fr = frames[0][iframe]			
 			ll = fr.log_likelihood[0,:].ravel()-fr.log_likelihood[1,:].ravel() 
-			#bits_dec = ldpc.get_message(G, ldpc.decode(H, ll, maxiter=100))
-			bits_dec = ll < 0
+			bits_dec = ll < 0 # decoder goes here 
 			str_dec = "".join("1" if (b>0) else "0" for b in bits_dec) 
 			str_msg = bits_ascii(bits_dec) 
-			w.writerow([fr.start_sample, str_dec, str_msg])
+			w.writerow([fr.start_sample, str_msg])
 			with np.printoptions(threshold=np.inf): print(str_msg)
 
 if __name__ == "__main__":

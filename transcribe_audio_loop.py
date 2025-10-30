@@ -1,64 +1,31 @@
-# pip install faster-whisper numpy sounddevice
-import os, numpy as np, sounddevice as sd
-from faster_whisper import WhisperModel
+#!/usr/bin/env python3
+import time, numpy as np, sounddevice as sd
+import frame, speech
+import queue
+import threading
 
-SR = 16000
-CHUNK = 30.0             # target chunk length, seconds
-OVERLAP = 2.0            # carry 2 s into next chunk
-MODEL = "medium.en"
+q_mic = queue.Queue()
+q_text = queue.Queue()
+t_mic = threading.Thread(
+	target=speech.mic_producer, 
+	args=(speech.sample_rate_Hz, speech.chunk_len_sam, q_mic), 
+	daemon=True)
+t_transcriber = threading.Thread(
+	target=speech.transcribe_audio_loop, 
+	args=(speech.model, speech.sample_rate_Hz, q_mic, q_text, False),
+	daemon=True)
+t_mic.start()
+t_transcriber.start()
 
-model = WhisperModel(MODEL, device="cpu", compute_type="int8_float16")
-
-def record_seconds(sec):
-    n = int(SR*sec)
-    audio = sd.rec(n, samplerate=SR, channels=1, dtype="float32")
-    sd.wait()
-    return audio[:,0].copy()
-
-confirmed_text = []
-last_end = 0.0           # seconds in the *global* timeline
-carry = np.zeros(0, dtype=np.float32)
-
-print("Listening… Ctrl+C to stop")
-t0 = 0.0
+# Go collecting text, forming it into frames and playing it back
 while True:
-    # collect ~30 s new audio, prepend 2 s overlap from previous chunk
-    new_audio = record_seconds(CHUNK)
-    audio = np.concatenate([carry, new_audio])
-    # keep OVERLAP seconds from the tail to prepend next time
-    keep = int(SR*OVERLAP)
-    carry = audio[-keep:].copy()
+	txt = None
+	try: while True: txt = q.get_nowait()
+	except queue.Empty: pass
+	if txt is None: txt = q.get() 
 
-    # decode current chunk; ask Whisper to use prior text for stability
-    init_prompt = "".join(confirmed_text)[-300:] if confirmed_text else None
-    segments, _ = model.transcribe(
-        audio,
-        language="en",
-        condition_on_previous_text=bool(init_prompt),
-        initial_prompt=init_prompt,
-        beam_size=5,
-        temperature=[0.0, 0.2, 0.4],
-        vad_filter=False
-    )
+	frame_bits = frame.make_frame_bits(txt)
+	frame_samples = frame.make_frame_samples(frame_bits) 
+	sd.play(frame_samples, int(frame.wf.fs_Hz)); 
+	sd.wait()
 
-    # segments' times are chunk-relative; map to global using the chunk start
-    # current chunk starts at global time t0 - OVERLAP
-    chunk_start = t0 - OVERLAP
-    stitched = []
-    for s in segments:
-        seg_start = chunk_start + s.start
-        seg_end = chunk_start + s.end
-        # drop anything that ends at or before last_end (duplicate from overlap)
-        if seg_end <= last_end:
-            continue
-        # keep; optionally trim leading part if seg_start < last_end
-        stitched.append(s.text)
-        last_end = max(last_end, seg_end)
-
-    if stitched:
-        out = " ".join(t.strip() for t in stitched).strip()
-        if out:
-            confirmed_text.append(out)
-            print(out)  # emit only the newly confirmed tail
-
-    t0 += CHUNK  # advance global clock by the new non-overlapped audio

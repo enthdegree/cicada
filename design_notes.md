@@ -3,8 +3,8 @@
 ## Signer (transmit-side) details 
 
 A python script.
-Speech recognition goes transcribing data into a text FIFO buffer
-- After the buffer collects 16 words, ingest them and transmit a 512-bit (64 byte) payload:
+Speech recognition goes transcribing a rolling window of text 
+- For each transcript segment, transmit a 512-bit (64 byte) payload:
 	- 128-bit plaintext header:
 		- 32 bit unix timestamp
 		- 8 bit int of # of words signed
