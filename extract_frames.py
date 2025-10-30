@@ -1,8 +1,23 @@
 #!/usr/bin/env python3
-import sys, csv, pyldpc, numpy as np
-from fsk.demodulate import FSKDemodulator
+import sys, csv, numpy as np
+from fsk.demodulate import FSKDemodulator, FSKDemodulatorParameters
+from fsk.waveform import FSKWaveform, FSKParameters, default_mod_table
+from functools import partial
 
-ldpc_dec = Decoder()
+wfp = FSKParameters(
+	symbol_rate_Hz=344.53125,
+	hop_factor=32,
+	mod_table_fn=partial(default_mod_table, pattern=11),
+	)
+wf = FSKWaveform(wfp)
+
+demod_params = FSKDemodulatorParameters(
+	pulse_frac=32,
+	frame_search_win = 1.5,
+	frame_search_win_step = 1.5/3,
+	symbols_per_frame=1026
+	)
+demod = FSKDemodulator(cfg=demod_params, wf=wf)
 
 def load_wav(path):
 	try:
@@ -20,34 +35,32 @@ def bits_str(bits):
 	b[b!=0]=1
 	return "".join("1" if v else "0" for v in b.tolist())
 
-def bits_ascii(bitstr):
-	b = np.fromiter((1 if c=="1" else 0 for c in bitstr), dtype=np.uint8)
+def bits_ascii(b):
 	pad = (-len(b)) % 8
 	if pad: b = np.concatenate([b, np.zeros(pad, np.uint8)])
-	by = np.packbits(b.reshape(-1,8), bitorder="big").tobytes()
-	return by.decode("ascii", errors="replace")
+	pb = np.packbits(b.reshape(-1,8), bitorder="big").tobytes()
+	return pb.decode("ascii", errors="replace")
 
 def main():
 	in_wav = sys.argv[1] if len(sys.argv) > 1 else "output.wav"
 	out_csv = sys.argv[2] if len(sys.argv) > 2 else "frames.csv"
 	x, fs = load_wav(in_wav)
 
-	demod = FSKDemodulator()
 	frames = demod.frame_search(x)
 	
 	with open(out_csv, "w", newline="") as f:
 		w = csv.writer(f)
-		w.writerow(["frame_start_sample_idx","frame_demod","frame_ascii"])
+		w.writerow(["frame_start_sample_idx","bits","ascii"])
 		for iframe in range(len(frames[0])):
-			print(f'Decoding frame {iframe} of {len(frames[0])}')
+			print(f'Decoding frame {iframe+1} of {len(frames[0])}')
 			fr = frames[0][iframe]			
-			ll = fr.log_likelihood[1,:].ravel() - fr.log_likelihood[0,:].ravel() 
-			bits_dec = ldpc_dec.decode(ll)[0]
-			str_dec = "".join("1" if b else "0" for b in bits_dec.tolist()) 
-			str_msg = bits_ascii(msg_bits) 
+			ll = fr.log_likelihood[0,:].ravel()-fr.log_likelihood[1,:].ravel() 
+			#bits_dec = ldpc.get_message(G, ldpc.decode(H, ll, maxiter=100))
+			bits_dec = ll < 0
+			str_dec = "".join("1" if (b>0) else "0" for b in bits_dec) 
+			str_msg = bits_ascii(bits_dec) 
 			w.writerow([fr.start_sample, str_dec, str_msg])
-			print(msg_bits)
-			print(str_msg)
+			with np.printoptions(threshold=np.inf): print(str_msg)
 
 if __name__ == "__main__":
 	main()

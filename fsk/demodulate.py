@@ -3,13 +3,14 @@ from dataclasses import dataclass
 import numpy as np
 from numpy.lib.stride_tricks import as_strided
 from .waveform import FSKWaveform
+import matplotlib.pyplot as plt
 
 @dataclass 
 class FSKDemodulatorParameters:
-	symbols_per_frame: int = 1024 # number of coded symbols per frame
-	frame_search_win: float = 1.2 # search window length in # of frames
-	frame_search_win_step: float = 0.1 # search window shift length in # of frames
-	pulse_frac: int = 8 # fraction of a pulse to use in pulse search
+	symbols_per_frame: int = 1026 # number of coded symbols per frame
+	frame_search_win: float = 1.5 # search window length in # of frames
+	frame_search_win_step: float = 0.5 # search window shift length in # of frames
+	pulse_frac: int = 16 # fraction of a pulse to use in pulse search
 
 @dataclass 
 class FSKDemodulatorResult:
@@ -41,7 +42,10 @@ class FSKDemodulator:
 		X = self._hankel(x, self.wf.samples_per_pulse, step=step)
 		C = self.wf.pulses_cos @ X
 		S = self.wf.pulses_sin @ X
-		return C * C # + S * S
+		M_unnormalized = C * C + S * S
+		median_power = np.median(M_unnormalized, axis=1, keepdims=True) 
+		M = M_unnormalized / (median_power + 1e-12)
+		return M 
 
 	def symbol_energy_map(self, Ep: np.ndarray, start: int) -> np.ndarray:
 		"""Assuming a frame at col `start` of Ep, gather the frame's symbol
@@ -57,14 +61,18 @@ class FSKDemodulator:
 		ir = self.wf.mod_table[:, isym % self.wf.hop_factor] # (mod_order,spf)
 		return Ep[ir, ic]
 
-	def demodulate_frame(self, Es: np.ndarray, scale=1) -> FSKDemodulatorResult:
+	def demodulate_frame(self, Es: np.ndarray, start=0, scale=1) -> FSKDemodulatorResult:
 		"""Demodulates a frame given a symbol energy map.
-		You have to correct the symbol start index yourself oudside this.
+		You have to correct the symbol start index yourself outside this.
 		"""
 		syms = np.argmax(Es, axis=0)
-		L = 1-np.exp(-Es/scale)
-		L = L/np.sum(L,axis=0)
-		return FSKDemodulatorResult(start_sample=0, syms=syms, log_likelihood=np.log(L))
+		Z = Es / scale
+		Zmax = np.max(Z, axis=0, keepdims=True)
+		P = np.exp(Z - Zmax)
+		P /= np.sum(P, axis=0, keepdims=True)
+		LL = np.log(P)
+
+		return FSKDemodulatorResult(start_sample=start, syms=syms, log_likelihood=LL)
 
 	def frame_energy_map(self, Ep: np.ndarray) -> np.ndarray:
 		"""Given a map of pulse energies, find the vector Ef where Ef[i] is 
@@ -91,21 +99,46 @@ class FSKDemodulator:
 		win_len_cols = int(round(self.frame_search_win * spf * pfrac))
 		win_step_cols = int(round(self.frame_search_win_step * spf * pfrac))
 		l_dr = []
+		l_starts = []
 		for s in range(0, max(0, len(Ef) - win_len_cols + 1), win_step_cols):
 			start = s + np.argmax(Ef[s:s+win_len_cols])
+			l_starts.append(start)
+		l_starts = list(set(l_starts))
+		for start in l_starts:
 			Es = self.symbol_energy_map(Ep, start)
-			dr = self.demodulate_frame(Es)
-			dr.start_sample = start
+			dr = self.demodulate_frame(Es, start)
 			l_dr.append(dr)
 
+		# ---------- DEBUG PLOTS ----------
+		# Ep: 2D energy vs time
+		plt.figure()
+		plt.imshow(
+			np.log10(Ep+np.min(Ep)+1e-6),
+			aspect="auto",
+			origin="lower",
+			interpolation="nearest",
+		)
+		# add vertical markers for detected frames
+		for dr in l_dr:
+			plt.axvline(dr.start_sample, color="red", linestyle="--", linewidth=0.8)
+
+		plt.colorbar(label="energy")
+		plt.title("Ep (pulse energy map)")
+		plt.xlabel("time col / sample offset (strided)")
+		plt.ylabel("pulse / hop")
+
+		# Ef: 1D frame energy
+		plt.figure()
+		plt.plot(Ef)
+		
+		# add vertical markers for detected frames
+		for dr in l_dr:
+			plt.axvline(dr.start_sample, color="red", linestyle="--", linewidth=0.8)
+
+		plt.title("Ef (frame energy)")
+		plt.xlabel("start col")
+		plt.ylabel("score")
+		plt.show()
+		# ---------- END DEBUG PLOTS ----------
 		return l_dr, Ef, Ep
-
-	def frames_to_csv(l_dr: list[FSKDemodulatorResults], csv_path: str = 'frames.csv'):
-		import csv
-		with open(csv_path, 'w') as f:
-			w = csv.writer(f)
-			w.writerow(['start_sample', 'syms', 'log_likelihood'])
-			for fr in l_dr:
-				w.writerow([fr.start_sample, f"{fr.syms}", f"{fr.log_likelihood:.6f}"])        
-
 

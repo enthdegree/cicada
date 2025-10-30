@@ -79,6 +79,6 @@ class FSKWaveform:
 		syms = self.bits_to_symbols(bits)
 		mod_table_col_idx = np.arange(len(syms)) % self.hop_factor
 		pidx = self.mod_table[syms, mod_table_col_idx]
-		frames = self.pulses_cos[pidx,:]
-		return frames.reshape(-1)
+		syms_modulated = self.pulses_cos[pidx,:]
+		return syms_modulated.reshape(-1)
 
