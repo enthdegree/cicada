@@ -8,7 +8,7 @@ model = WhisperModel(model_size, compute_type="float32")
 sample_rate_Hz = 16000
 chunk_len_sam = 1024
 
-def regularize_string(str_english):
+def regularize_transcript(str_english):
 	str_reg = re.sub(r"\s+", " ", str_english)
 	for dash in ("-", "–", "—"): str_reg = str_reg.replace(dash, "-")
 	str_reg = parser.parse(str_reg) 
@@ -83,9 +83,10 @@ def transcribe_audio_loop(model, sample_rate, q_audio, q_text, debug=True):
 			print(f"[decode error] {e!r}")
 			continue
 
-		combined_text = " ".join(s.text.strip() for s in segments if s.text)
-		str_regularized = regularize_string(combined_text)
-		if str_regularized.strip(): q_text.put(str_regularized) # If there's speech, hand it to the main loop
+		# Reformat and publish transcript
+		str_transcript_raw = " ".join(s.text.strip() for s in segments if s.text)
+		str_transcript_reg = regularize_transcript(str_transcript_raw)
+		if str_regularized.strip(): q_text.put(str_regularized.encode('ascii')) 
 		if debug:
 			print("[debug] got regularized string")
 

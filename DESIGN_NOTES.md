@@ -89,7 +89,9 @@ $[B=1,f_{\text{sym}}=344.5,s=63,p=16,f_c=18.5\text{ kHz},f_{\text{bw}}=3\text{ k
 # Prior work 
 
 ## Physical-layer watermarking
-This is not a unique idea. As a starting reference, a team at Cornell is working on a similar appliance for images[5].
+This is not a unique idea. 
+It is a bit of a fad right now, I think.
+As a starting reference, a team at Cornell is working on a similar appliance for images[5].
 ROC camera[6] is some zero-knowledge-proof image sensor.
 
 ## Acoustic communication

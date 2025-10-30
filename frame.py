@@ -7,18 +7,19 @@ from fsk.waveform import FSKWaveform, FSKParameters, default_mod_table
 k = 1026
 wfp = FSKParameters(
 	symbol_rate_Hz=344.53125,
-	hop_factor=16,
-	mod_table_fn=partial(default_mod_table, pattern=7),
+	hop_factor=63,
+	mod_table_fn=partial(default_mod_table, pattern=16),
 )
 wf = FSKWaveform(wfp)
 
 def bits_from_ascii(b): 
 	return np.unpackbits(np.frombuffer(b, dtype=np.uint8), bitorder="big")
-def make_frame_bits(txt, k=k):
-	txt = ('ASDFGHJKLZXCVBNM asdfghjklzxcvbnm!!>?@ ' * k + txt)[-int(k/8):].encode("ascii")
-	n_msg_bits = min(len(txt)*8, k); 
+
+def make_frame_bits(vch, k=k):
+	n_msg_bits = min(len(vch)*8, k); 
+	vch_bits = bits_from_ascii(vch)[:n_msg_bits]
 	msg_bits = np.zeros(k, np.uint8)
-	msg_bits[:n_msg_bits] = bits_from_ascii(txt)[:n_msg_bits]
+	msg_bits[:n_msg_bits] = vch_bits
 	return msg_bits
 
 def make_frame_samples(frame_bits):

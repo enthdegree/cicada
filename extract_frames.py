@@ -4,8 +4,8 @@ from fsk.demodulate import FSKDemodulator, FSKDemodulatorParameters
 import frame
 
 demod_params = FSKDemodulatorParameters(
-	pulse_frac=16,
-	frame_search_win = 1.6,
+	pulse_frac=32,
+	frame_search_win = 1.2,
 	frame_search_win_step = 0.4,
 	symbols_per_frame=frame.k
 	)
@@ -22,15 +22,11 @@ def load_wav(path):
 	if x.ndim > 1: x = x.mean(axis=1)
 	return x.astype(np.float32, copy=False), int(fs)
 
-def bits_str(bits):
-	b = np.asarray(bits, dtype=np.uint8).ravel(); 
-	b[b!=0]=1
-	return "".join("1" if v else "0" for v in b.tolist())
-
 def bits_ascii(b):
 	pad = (-len(b)) % 8
 	if pad: b = np.concatenate([b, np.zeros(pad, np.uint8)])
 	pb = np.packbits(b.reshape(-1,8), bitorder="big").tobytes()
+	if pad: pb = pb[:-1]
 	return pb.decode("ascii", errors="replace")
 
 def main():
@@ -49,10 +45,10 @@ def main():
 			fr = frames[0][iframe]			
 			ll = fr.log_likelihood[0,:].ravel()-fr.log_likelihood[1,:].ravel() 
 			bits_dec = ll < 0 # decoder goes here 
-			str_dec = "".join("1" if (b>0) else "0" for b in bits_dec) 
-			str_msg = bits_ascii(bits_dec) 
-			w.writerow([fr.start_sample, str_msg])
-			with np.printoptions(threshold=np.inf): print(str_msg)
+			ch_dec = "".join("1" if (b>0) else "0" for b in bits_dec) 
+			ch_msg = bits_ascii(bits_dec) 
+			print(ch_msg)
+			w.writerow([fr.start_sample, ch_msg])
 
 if __name__ == "__main__":
 	main()
