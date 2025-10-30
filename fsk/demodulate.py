@@ -7,8 +7,8 @@ from .waveform import FSKWaveform
 @dataclass 
 class FSKDemodulatorParameters:
 	symbols_per_frame: int = 1024 # number of coded symbols per frame
-	frame_search_win: float = 1.5 # search window length in # of frames
-	frame_search_win_step: float = 0.4 # search window shift length in # of frames
+	frame_search_win: float = 1.2 # search window length in # of frames
+	frame_search_win_step: float = 0.1 # search window shift length in # of frames
 	pulse_frac: int = 8 # fraction of a pulse to use in pulse search
 
 @dataclass 
@@ -41,7 +41,7 @@ class FSKDemodulator:
 		X = self._hankel(x, self.wf.samples_per_pulse, step=step)
 		C = self.wf.pulses_cos @ X
 		S = self.wf.pulses_sin @ X
-		return C * C + S * S
+		return C * C # + S * S
 
 	def symbol_energy_map(self, Ep: np.ndarray, start: int) -> np.ndarray:
 		"""Assuming a frame at col `start` of Ep, gather the frame's symbol

@@ -19,19 +19,9 @@ Underpinnings:
 
 # Todo
 
-- waveform.js + demodulate.py unit test
-- ldpc.js + ldpc.py unit test: ber curve
-- bls.js + bls.py unit test
-- sign_codec2.py
-	- main loop: 
-		- continuously encode the last block of audio into codec2/450 bps 
-		- make_frame() pack those 16 words into a frame as described in design_notes.md
-		- play the frame as audio
-- verify_codec2.py (signed_recording.wav ---> decoding.wav, annotation.txt)
-	- find all the frames in signed_recording.wav 
-	- subsample the found frames to ones that occur at reasonable frame spacing
-	- decode each group of frames into a list of (codec2 stream) + (signature) + (header data) packets
-	- produce decoding.wav, decoding.csv with timestamp, verification outcome, header data
+- pyldpc enc/dec
+- bls unit test
+- frame assembler/dissassembler
 - sign_transcript.py
 	- main loop: 
 		- every 4 seconds collect the last 16 words

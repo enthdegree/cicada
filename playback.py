@@ -11,4 +11,4 @@ wf, enc = FSKWaveform(), Encoder()
 while True:
     cw = enc.encode(payload())
     x = wf.modulate_frame(cw).astype(np.float32)
-    sd.play(x, int(wf.fs_Hz)); sd.wait(); time.sleep(0.1)
+    sd.play(x, int(wf.fs_Hz)); sd.wait(); time.sleep(0.2)
