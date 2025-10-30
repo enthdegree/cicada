@@ -7,8 +7,8 @@ from functools import partial
 
 wfp = FSKParameters(
 	symbol_rate_Hz=344.53125,
-	hop_factor=32,
-	mod_table_fn=partial(default_mod_table, pattern=11),
+	hop_factor=16,
+	mod_table_fn=partial(default_mod_table, pattern=7),
 )
 wf = FSKWaveform(wfp)
 
