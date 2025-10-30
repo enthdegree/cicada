@@ -8,8 +8,8 @@ import matplotlib.pyplot as plt
 @dataclass 
 class FSKDemodulatorParameters:
 	symbols_per_frame: int = 1026 # number of coded symbols per frame
-	frame_search_win: float = 1.5 # search window length in # of frames
-	frame_search_win_step: float = 0.5 # search window shift length in # of frames
+	frame_search_win: float = 1.2 # search window length in # of frames
+	frame_search_win_step: float = 0.3 # search window shift length in # of frames
 	pulse_frac: int = 16 # fraction of a pulse to use in pulse search
 
 @dataclass 
@@ -104,6 +104,7 @@ class FSKDemodulator:
 			start = s + np.argmax(Ef[s:s+win_len_cols])
 			l_starts.append(start)
 		l_starts = list(set(l_starts))
+		l_starts.sort()
 		for start in l_starts:
 			Es = self.symbol_energy_map(Ep, start)
 			dr = self.demodulate_frame(Es, start)

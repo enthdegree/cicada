@@ -6,8 +6,8 @@ from functools import partial
 
 wfp = FSKParameters(
 	symbol_rate_Hz=344.53125,
-	hop_factor=32,
-	mod_table_fn=partial(default_mod_table, pattern=11),
+	hop_factor=16,
+	mod_table_fn=partial(default_mod_table, pattern=7),
 	)
 wf = FSKWaveform(wfp)
 
@@ -53,6 +53,7 @@ def main():
 		w.writerow(["frame_start_sample_idx","bits","ascii"])
 		for iframe in range(len(frames[0])):
 			print(f'Decoding frame {iframe+1} of {len(frames[0])}')
+			print(f'Location: {frames[0][iframe].start_sample} ({frames[0][iframe].start_sample/wf.fs_Hz} s)')
 			fr = frames[0][iframe]			
 			ll = fr.log_likelihood[0,:].ravel()-fr.log_likelihood[1,:].ravel() 
 			#bits_dec = ldpc.get_message(G, ldpc.decode(H, ll, maxiter=100))
