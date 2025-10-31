@@ -1,6 +1,6 @@
 # Pull frames out of output.wav and dump them to frames.csv
 import sys, csv, numpy as np
-import frame
+from imprint import frame_builder 
 
 def load_wav(path):
 	try:
@@ -25,21 +25,23 @@ def main():
 	out_csv = sys.argv[2] if len(sys.argv) > 2 else "frames.csv"
 	x, fs = load_wav(in_wav)
 
-	frames = frame.demod.frame_search(x)
+	frames = frame_builder.demod.frame_search(x)
 	
 	with open(out_csv, "w", newline="") as f:
 		w = csv.writer(f)
-		w.writerow(["sample_idx","ascii"])
+		w.writerow(["pulse_map_idx","ascii"])
 		for iframe in range(len(frames[0])):
+			frame_start_sam = frames[0][iframe].pulse_map_idx*frame_builder.demod.pulse_frac
+			frame_start_sec = frame_start_sam/frame_builder.wf.fs_Hz
 			print(f'Decoding frame {iframe+1} of {len(frames[0])}')
-			print(f'Location: {frames[0][iframe].sample_idx} ({frames[0][iframe].sample_idx/frame.wf.fs_Hz} s)')
+			print(f'Location: {frame_start_sam} ({frame_start_sec} s)')
 			fr = frames[0][iframe]			
 			ll = fr.log_likelihood[0,:].ravel()-fr.log_likelihood[1,:].ravel() 
 			bits_dec = ll < 0 # decoder goes here 
 			ch_dec = "".join("1" if (b>0) else "0" for b in bits_dec) 
 			ch_msg = bits_ascii(bits_dec) 
 			print(ch_msg)
-			w.writerow([fr.sample_idx, ch_msg])
+			w.writerow([fr.pulse_map_idx, ch_msg])
 
 if __name__ == "__main__":
 	main()

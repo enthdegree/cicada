@@ -3,8 +3,8 @@
 import time, numpy as np
 from datetime import datetime
 from functools import partial
-from fsk.waveform import FSKWaveform, FSKParameters, default_mod_table
-from fsk.demodulate import FSKDemodulator, FSKDemodulatorParameters
+from imprint.fsk.waveform import FSKWaveform, FSKParameters, default_mod_table
+from imprint.fsk.demodulate import FSKDemodulator, FSKDemodulatorParameters
 
 k = 1026
 wf_params = FSKParameters(
@@ -17,7 +17,8 @@ demod_params = FSKDemodulatorParameters(
 	symbols_per_frame=1026, # number of coded symbols per frame
 	frame_search_win=1.2, # search window length in # of frames
 	frame_search_win_step=0.3, # search window shift length in # of frames
-	pulse_frac=16) # fraction of a pulse to use in pulse search
+	pulse_frac=8, # fraction of a pulse to use in pulse search
+	plot=True) 
 demod = FSKDemodulator(cfg=demod_params, wf=wf)
 
 def bits_from_ascii(b): 
