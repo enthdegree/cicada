@@ -3,7 +3,7 @@
 ## Signer (transmit-side) details 
 
 A python script.
-Speech recognition goes transcribing a rolling window of text 
+Speech recognition (some Whisper model[1]) goes transcribing a rolling window of text 
 - For each transcript segment, transmit a 512-bit (64 byte) payload:
 	- 128-bit plaintext header:
 		- 32 bit unix timestamp
@@ -25,14 +25,6 @@ We get a recording of some speech that had payloads in it.
 The verifier knows and trusts the signer's public key.
 From this recording the listener recovers a transcript of the speech, and all the payloads.
 The listener checks segments of the transcript to see if they match the payloads.
-
-## Challenges
-
-- what if it sounds annoying
-- what if the data that gets signed is not representative of what we want[1]
-- what if they talk too fast and words get dropped
-- what if an attacker/spoofer can find speech with similar sound signature
-- robustness is a challenge. Successful payload recovery is really sensitive to how things are being recorded and the environment (channel nastiness, impulse noise).
 
 # Channel
 
@@ -104,7 +96,7 @@ We aim for 10x this rate but may have better channel conditions: communication b
 
 # Notes and references 
 
-- [1]: Perceptual hash: https://en.wikipedia.org/wiki/Perceptual_hashing . These are bad and that there will be problems with them forever: https://rentafounder.com/the-problem-with-perceptual-hashes/
+- [1]: Actually a slightly regularized version of a Whisper transcript, see `speech.py`
 - [2]: Traer and McDermott 2016, "Statistics of natural reverberation enable perceptual separation of sound and space" here: https://mcdermottlab.mit.edu/Reverb/SurveyData.html 
 - [3]: For a periodic Hann window, $w_{-10\text{ dB}}= \sim 1.9, \ w_{-20 \text{ dB}}=\sim 2.45$
 - [4]: Borrowing $w_x$ from the previous point, consider designing for a high-SNR high-ISI case where $4$ past pulses present in current samples with at least $3$ dB attenuation. Picking parameters that yield $b_k > w_{-16 \text{ dB}},\ k=1,2,3,4$, then the SNR will drop to no worse than 10 dB due to ISI.

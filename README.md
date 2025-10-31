@@ -8,22 +8,18 @@ Implementation details in [`DESIGN_NOTES.md`](./DESIGN_NOTES.md).
 
 # Project components 
 
-Underpinnings:
+## Applications
 
+- `sign.py` In a loop, transcribe audio and transmit acoustic signatures, signed with your BLS private key
+- `transcribe.py` Form a `transcription.txt` from `recording.wav` 
+- `verify.py` Given `transcription.txt`, `recording.wav` and a BLS public key, produce `transcription_annotated.md` which is annotated with signed portions of the transcription.
+
+## Underpinnings
+
+- `frame.py` Frame assembly routines and waveform constructor
+- `speech.py` Speech transcription routines
 - `fsk/` Physical-layer acoustic waveform
 	- `fsk/waveform.py` Python defining the audio waveform and its modulation
 	- `fsk/demodulate.py` Python demodulator for recordings
-- `bls/` BLS API (todo)
+- `tests/` Tests used for waveform development
 
-
-# Todo
-
-- improve mod/demod reliability
-- rate-1/2 frame encode/decode
-- bls 
-- verify_transcript.py (signed_recording.wav + transcript.txt ---> frames.csv, transcript_annotated.txt)
-	- find all the frames in signed_recording.wav and write them to frames.csv
-	- for each frame, use the header to match it to the transcript. 
-		- for each match to this frame (if any), annotate the transcript with a reference to this frame 
-		- note whether only the header matches
-	- write transcript_annotated.txt
