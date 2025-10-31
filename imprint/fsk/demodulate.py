@@ -17,7 +17,7 @@ class FSKDemodulatorParameters:
 
 @dataclass 
 class FSKDemodulatorResult: # This is a data class that will be produced by frame_search.py
-	sample_idx: int # Audio sample where this frame started 
+	pulse_map_idx: int # Column in the pulse energy map where this frame started 
 	syms: int # Symbol hard-decisions
 	log_likelihood: np.ndarray # Symbol LLRs
 
@@ -47,7 +47,8 @@ class FSKDemodulator:
 		S = self.wf.pulses_sin @ X
 		M = C * C + S * S
 		M_eq = M / (np.median(M, axis=1, keepdims=True)  + 1e-12) # Mic might not be equally sensitive to each pulse
-		M_base = medfilt(M_eq, kernel_size=(1,self.median_window_len_pulses*self.pulse_frac))
+		filtsz = int(self.median_window_len_pulses*self.pulse_frac/2)*2 + 1
+		M_base = medfilt(M_eq, kernel_size=(1,filtsz))
 		M_filt = M_eq - M_base # Heuristic to mitigate bias from transients and ISI
 		return M_filt
 
@@ -75,7 +76,7 @@ class FSKDemodulator:
 		P = np.exp(Z - Zmax)
 		P /= np.sum(P, axis=0, keepdims=True)
 		LL = np.log(P)
-		return FSKDemodulatorResult(sample_idx=start, syms=syms, log_likelihood=LL)
+		return FSKDemodulatorResult(pulse_map_idx=start, syms=syms, log_likelihood=LL)
 
 	def frame_energy_map(self, Ep: np.ndarray) -> np.ndarray:
 		"""Given a map of pulse energies, find the vector Ef where Ef[i] is 
@@ -113,29 +114,32 @@ class FSKDemodulator:
 			l_dr.append(dr)
 
 		if self.plot:
-			plt.figure() # Ep: 2D energy vs time
+			lo = np.percentile(Ep, 10)
+			hi = np.percentile(Ep, 90)
+			plt.figure(figsize=(32,4)) # Ep: 2D energy vs time
 			plt.imshow(
 				Ep-np.mean(Ep,axis=0, keepdims=True),
 				aspect="auto",
+				vmin=lo,
+				vmax=hi,
 				origin="lower",
 			)
 			for dr in l_dr: # Line markers for detected frames
-				plt.axvline(dr.sample_idx, color="red", linestyle="--", linewidth=0.8)
-
+				plt.axvline(dr.pulse_map_idx, color="red", linestyle="--", linewidth=0.8)
 			plt.colorbar(label="energy")
 			plt.title("Ep (pulse energy map)")
 			plt.xlabel("time col / sample offset (strided)")
 			plt.ylabel("pulse / hop")
+			plt.savefig("pulse_energy.png", dpi=300, bbox_inches="tight")
 
-			plt.figure() # Ef: 1D frame energy
+			plt.figure(figsize=(32,4)) # Ef: 1D frame energy
 			plt.plot(Ef)
 			for dr in l_dr: # Line markers for detected frames
-				plt.axvline(dr.sample_idx, color="red", linestyle="--", linewidth=1.8)
-
+				plt.axvline(dr.pulse_map_idx, color="red", linestyle="--", linewidth=1.8)
 			plt.title("Ef (frame energy)")
 			plt.xlabel("start col")
 			plt.ylabel("score")
-			plt.show()
+			plt.savefig("frame_energy.png", dpi=300, bbox_inches="tight")
 
 		return l_dr, Ef, Ep
 

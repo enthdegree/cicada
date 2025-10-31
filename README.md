@@ -16,7 +16,7 @@ Implementation details in [`DESIGN_NOTES.md`](./DESIGN_NOTES.md).
 
 ## Underpinnings
 
-- `frame.py` Frame assembly routines and waveform constructor
+- `frame.py` Frame assembly routines and waveform mod/demod object construction
 - `speech.py` Speech transcription routines
 - `fsk/` Physical-layer acoustic waveform
 	- `fsk/waveform.py` Python defining the audio waveform and its modulation
