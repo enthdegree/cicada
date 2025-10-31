@@ -1,20 +1,23 @@
 from __future__ import annotations
 from dataclasses import dataclass
 import numpy as np
+from scipy.signal import medfilt
 from numpy.lib.stride_tricks import as_strided
 from .waveform import FSKWaveform
 import matplotlib.pyplot as plt
 
 @dataclass 
-class FSKDemodulatorParameters:
+class FSKDemodulatorParameters: 
 	symbols_per_frame: int = 1026 # number of coded symbols per frame
 	frame_search_win: float = 1.2 # search window length in # of frames
 	frame_search_win_step: float = 0.3 # search window shift length in # of frames
 	pulse_frac: int = 16 # fraction of a pulse to use in pulse search
+	median_window_len_pulses: int = 4
+	plot: bool = True
 
 @dataclass 
-class FSKDemodulatorResult:
-	start_sample: int # Audio sample where this frame started 
+class FSKDemodulatorResult: # This is a data class that will be produced by frame_search.py
+	sample_idx: int # Audio sample where this frame started 
 	syms: int # Symbol hard-decisions
 	log_likelihood: np.ndarray # Symbol LLRs
 
@@ -42,10 +45,11 @@ class FSKDemodulator:
 		X = self._hankel(x, self.wf.samples_per_pulse, step=step)
 		C = self.wf.pulses_cos @ X
 		S = self.wf.pulses_sin @ X
-		M_unnormalized = C * C + S * S
-		median_power = np.median(M_unnormalized, axis=1, keepdims=True) 
-		M = M_unnormalized / (median_power + 1e-12)
-		return M 
+		M = C * C + S * S
+		M_eq = M / (np.median(M, axis=1, keepdims=True)  + 1e-12) # Mic might not be equally sensitive to each pulse
+		M_base = medfilt(M_eq, kernel_size=(1,self.median_window_len_pulses*self.pulse_frac))
+		M_filt = M_eq - M_base # Heuristic to mitigate bias from transients and ISI
+		return M_filt
 
 	def symbol_energy_map(self, Ep: np.ndarray, start: int) -> np.ndarray:
 		"""Assuming a frame at col `start` of Ep, gather the frame's symbol
@@ -71,8 +75,7 @@ class FSKDemodulator:
 		P = np.exp(Z - Zmax)
 		P /= np.sum(P, axis=0, keepdims=True)
 		LL = np.log(P)
-
-		return FSKDemodulatorResult(start_sample=start, syms=syms, log_likelihood=LL)
+		return FSKDemodulatorResult(sample_idx=start, syms=syms, log_likelihood=LL)
 
 	def frame_energy_map(self, Ep: np.ndarray) -> np.ndarray:
 		"""Given a map of pulse energies, find the vector Ef where Ef[i] is 
@@ -90,7 +93,6 @@ class FSKDemodulator:
 	def frame_search(self, x: np.ndarray) -> list[FSKDemodulatorResult]:
 		"""Search for and demodulate frames in a sample vector.
 		"""
-		
 		pfrac = self.pulse_frac
 		step = int(round(self.wf.samples_per_pulse / pfrac))
 		Ep = self.pulse_energy_map(x, step=step) 
@@ -110,36 +112,30 @@ class FSKDemodulator:
 			dr = self.demodulate_frame(Es, start)
 			l_dr.append(dr)
 
-		# ---------- DEBUG PLOTS ----------
-		# Ep: 2D energy vs time
-		plt.figure()
-		plt.imshow(
-			np.log10(Ep+np.min(Ep)+1e-6),
-			aspect="auto",
-			origin="lower",
-			interpolation="nearest",
-		)
-		# add vertical markers for detected frames
-		for dr in l_dr:
-			plt.axvline(dr.start_sample, color="red", linestyle="--", linewidth=0.8)
+		if self.plot:
+			plt.figure() # Ep: 2D energy vs time
+			plt.imshow(
+				Ep-np.mean(Ep,axis=0, keepdims=True),
+				aspect="auto",
+				origin="lower",
+			)
+			for dr in l_dr: # Line markers for detected frames
+				plt.axvline(dr.sample_idx, color="red", linestyle="--", linewidth=0.8)
 
-		plt.colorbar(label="energy")
-		plt.title("Ep (pulse energy map)")
-		plt.xlabel("time col / sample offset (strided)")
-		plt.ylabel("pulse / hop")
+			plt.colorbar(label="energy")
+			plt.title("Ep (pulse energy map)")
+			plt.xlabel("time col / sample offset (strided)")
+			plt.ylabel("pulse / hop")
 
-		# Ef: 1D frame energy
-		plt.figure()
-		plt.plot(Ef)
-		
-		# add vertical markers for detected frames
-		for dr in l_dr:
-			plt.axvline(dr.start_sample, color="red", linestyle="--", linewidth=0.8)
+			plt.figure() # Ef: 1D frame energy
+			plt.plot(Ef)
+			for dr in l_dr: # Line markers for detected frames
+				plt.axvline(dr.sample_idx, color="red", linestyle="--", linewidth=1.8)
 
-		plt.title("Ef (frame energy)")
-		plt.xlabel("start col")
-		plt.ylabel("score")
-		plt.show()
-		# ---------- END DEBUG PLOTS ----------
+			plt.title("Ef (frame energy)")
+			plt.xlabel("start col")
+			plt.ylabel("score")
+			plt.show()
+
 		return l_dr, Ef, Ep
 

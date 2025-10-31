@@ -1,7 +1,6 @@
-# Speech processing & transcription helpers
+# Speech processing routines
 import time, queue, numpy as np, sounddevice as sd
-import re
-from number_parser import parser
+import re from number_parser import parser
 from faster_whisper import WhisperModel
 model_size = "medium.en"
 model = WhisperModel(model_size, compute_type="float32")
