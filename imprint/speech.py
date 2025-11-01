@@ -1,6 +1,7 @@
 # Speech processing routines
 import time, queue, numpy as np, sounddevice as sd
-import re from number_parser import parser
+import re 
+from number_parser import parser
 from faster_whisper import WhisperModel
 model_size = "medium.en"
 model = WhisperModel(model_size, compute_type="float32")
@@ -85,7 +86,7 @@ def transcribe_audio_loop(model, sample_rate, q_audio, q_text, debug=True):
 		# Reformat and publish transcript
 		str_transcript_raw = " ".join(s.text.strip() for s in segments if s.text)
 		str_transcript_reg = regularize_transcript(str_transcript_raw)
-		if str_regularized.strip(): q_text.put(str_regularized.encode('ascii')) 
+		if str_transcript_reg: q_text.put(str_transcript_reg.encode('ascii')) 
 		if debug:
 			print("[debug] got regularized string")
 

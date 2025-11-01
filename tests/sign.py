@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import time, numpy as np, sounddevice as sd
-import frame, speech
+from imprint import frame_builder, speech
 import queue
 import threading
 
@@ -20,12 +20,13 @@ t_transcriber.start()
 # Go collecting text, forming it into frames and playing it back
 while True:
 	frame_ch = None
-	try: while True: frame_ch = q.get_nowait()
+	try: 
+		while True: frame_ch = q_text.get_nowait()
 	except queue.Empty: pass
-	if frame_ch is None: txt = q.get() 
-
-	frame_bits = frame.make_frame_bits(frame_ch)
-	frame_samples = frame.make_frame_samples(frame_bits) 
-	sd.play(frame_samples, int(frame.wf.fs_Hz)); 
+	if frame_ch is None: frame_ch = q_text.get() 
+	print(frame_ch.decode('utf-8'))
+	frame_bits = frame_builder.make_frame_bits(frame_ch)
+	frame_samples = frame_builder.make_frame_samples(frame_bits) 
+	sd.play(frame_samples, int(frame_builder.wf.fs_Hz)); 
 	sd.wait()
 
