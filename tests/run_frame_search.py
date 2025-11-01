@@ -1,6 +1,10 @@
-# Pull frames out of output.wav and dump them to frames.csv
+# Pull frames out of output.wav and dump them to frames.csv. 
+# Discard frames that aren't pure ASCII
 import sys, csv, numpy as np
+import re
 from imprint import frame_builder 
+
+discard_frame_thresh = 30 # If we get more than this many non-alphanumeric chars then throw this frame away
 
 def load_wav(path):
 	try:
@@ -40,7 +44,11 @@ def main():
 			bits_dec = ll < 0 # decoder goes here 
 			ch_dec = "".join("1" if (b>0) else "0" for b in bits_dec) 
 			ch_msg = bits_ascii(bits_dec) 
-			print(ch_msg)
+			n_bad = len(re.findall(r'[^a-z0-9 ]', ch_msg.lower()))
+			if n_bad > discard_frame_thresh:
+				print('[bad frame]')
+				continue
+			else: print(ch_msg)
 			w.writerow([fr.pulse_map_idx, ch_msg])
 
 if __name__ == "__main__":

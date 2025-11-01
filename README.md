@@ -10,16 +10,16 @@ Implementation details in [`DESIGN_NOTES.md`](./DESIGN_NOTES.md).
 
 ## Applications
 
-- `sign.py` In a loop, transcribe audio and transmit acoustic signatures, signed with your BLS private key
-- `transcribe.py` Form a `transcription.txt` from `recording.wav` 
-- `verify.py` Given `transcription.txt`, `recording.wav` and a BLS public key, produce `transcription_annotated.md` which is annotated with signed portions of the transcription.
+- `apps/sign.py` In a loop, transcribe audio and transmit acoustic signatures, signed with your BLS private key
+- `apps/transcribe.py` Form a `transcription.txt` from `recording.wav` 
+- `apps/verify.py` Given `transcription.txt`, `recording.wav` and a BLS public key, produce `transcription_annotated.md` which is annotated with signed portions of the transcription.
 
 ## Underpinnings
 
-- `frame.py` Frame assembly routines and waveform mod/demod object construction
-- `speech.py` Speech transcription routines
-- `fsk/` Physical-layer acoustic waveform
+- `imprint/frame.py` Frame assembly routines and waveform mod/demod object construction
+- `imprint/speech.py` Speech transcription routines
+- `imprint/fsk/` Physical-layer acoustic waveform
 	- `fsk/waveform.py` Python defining the audio waveform and its modulation
 	- `fsk/demodulate.py` Python demodulator for recordings
-- `tests/` Tests used for waveform development
+- `imprint/tests/` Tests used for waveform development
 
