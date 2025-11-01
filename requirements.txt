@@ -1,4 +1,7 @@
 numpy
 scipy
 soundfile
+souddevice
 matplotlib
+number_parser
+faster_whisper

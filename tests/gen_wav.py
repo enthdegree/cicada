@@ -6,7 +6,7 @@ import wave
 import struct
 import time
 from datetime import datetime
-import frame
+from imprint import frame_builder
 
 dur_s = 10.0
 inter_s = 0.5

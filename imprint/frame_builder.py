@@ -25,6 +25,7 @@ def bits_from_ascii(b):
 	return np.unpackbits(np.frombuffer(b, dtype=np.uint8), bitorder="big")
 
 def make_frame_bits(v_chars, k=k):
+	v_chars = (str(v_chars.decode('utf-8')) + 'ASDFGHJKLZXCVBNMqwertyuiop '*10).encode('ascii')
 	n_msg_bits = min(len(v_chars)*8, k); 
 	v_bits = np.zeros(k, np.uint8)
 	v_bits[:n_msg_bits] = bits_from_ascii(v_chars)[:n_msg_bits]
