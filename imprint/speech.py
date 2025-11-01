@@ -1,34 +1,34 @@
 # Speech processing routines
 import time, queue, numpy as np, sounddevice as sd
 import re 
-from number_parser import parser
+import number_parser 
 from faster_whisper import WhisperModel
 model_size = "medium.en"
+model_fs_Hz = 16e3
+window_sec = 10.0
+overlap_sec = 5.0
+mic_blocksize_sam = 1024
 model = WhisperModel(model_size, compute_type="float32")
-sample_rate_Hz = 16000
-chunk_len_sam = 1024
 
-def regularize_transcript(str_english):
-	str_reg = re.sub(r"\s+", " ", str_english)
-	for dash in ("-", "–", "—"): str_reg = str_reg.replace(dash, "-")
-	str_reg = parser.parse(str_reg) 
-	str_reg = str_reg.replace("-", " ") # Strip hyphens
-	str_reg = str_reg.lower()
-	str_reg = re.sub(r"[^a-z0-9 ]", "", str_reg)
-	str_reg = re.sub(r"\s+", " ", str_reg).strip() 
-	return str_reg
+def regularize_transcript(s):
+	for dash in ("-", "–", "—"): s = s.replace(dash, " ") # replace dashes with space
+	l_tokens = [(m.group(), m.start()) for m in re.finditer(r'\S+', s)] # Split on whitespace to (token, start_index) pairs
+	l_tokens_clean = list()
+	for itok in range(len(l_tokens)): # Clean each token in the list
+		tok = l_tokens[itok][0].lower() # Lowercase
+		tok = number_parser.parser.parse(tok) # Word to numeric
+		tok = re.sub(r"[^a-z0-9]", "", tok) # Strip non-alphanumeric
+		if len(tok) > 0: l_tokens_clean.append((tok, l_tokens[itok][1]))
+	return l_tokens_clean
 
-def transcribe_audio_loop(model, sample_rate, q_audio, q_text, debug=True):
-	window_sec = 10.0
-	overlap_sec = 5.0
-	window_samples = int(window_sec * sample_rate)
-	overlap_samples = int(overlap_sec * sample_rate)
+def transcribe_audio_loop(model, q_audio, q_text, debug=True):
+	window_samples = int(window_sec * model_fs_Hz)
+	overlap_samples = int(overlap_sec * model_fs_Hz)
 	hop_samples = window_samples - overlap_samples
 
 	audio_buffer = np.zeros(0, dtype=np.float32)
 	next_decode_at = 0.0
 	last_debug = 0.0
-
 	while True:
 		try:
 			chunk = q_audio.get(timeout=0.1)
@@ -53,7 +53,7 @@ def transcribe_audio_loop(model, sample_rate, q_audio, q_text, debug=True):
 
 		now = time.time()
 		if debug and now - last_debug > 2.0:
-			secs = audio_buffer.size / sample_rate
+			secs = audio_buffer.size / model_fs_Hz
 			print(f"[loop] buffer_len={secs:.2f}s")
 			last_debug = now
 
@@ -64,7 +64,7 @@ def transcribe_audio_loop(model, sample_rate, q_audio, q_text, debug=True):
 		# throttle
 		if now < next_decode_at:
 			continue
-		next_decode_at = now + (hop_samples / sample_rate)
+		next_decode_at = now + (hop_samples / model_fs_Hz)
 
 		# decode latest window
 		window_audio = audio_buffer[-window_samples:]
@@ -85,21 +85,20 @@ def transcribe_audio_loop(model, sample_rate, q_audio, q_text, debug=True):
 
 		# Reformat and publish transcript
 		str_transcript_raw = " ".join(s.text.strip() for s in segments if s.text)
-		str_transcript_reg = regularize_transcript(str_transcript_raw)
-		if str_transcript_reg: q_text.put(str_transcript_reg.encode('ascii')) 
+		l_tokens = regularize_transcript(str_transcript_raw)
+		if len(l_tokens) > 0: q_text.put(l_tokens) 
 		if debug:
 			print("[debug] got regularized string")
 
-def mic_producer(sample_rate, blocksize, q_audio):
+def mic_producer(q_audio):
 	def _callback(indata, frames, time_info, status):
-		if status:
-			print("[mic]", status)
-		# mono
-		q_audio.put(indata[:, 0].copy())
+		if status: print("[mic]", status)
+		mono = indata.mean(axis=1).copy()
+		q_audio.put(mono)
 
-	with sd.InputStream(samplerate=sample_rate,
+	with sd.InputStream(samplerate=model_fs_Hz,
 		channels=1,
-		blocksize=blocksize,
+		blocksize=mic_blocksize_sam,
 		dtype="float32",
 		callback=_callback):
 		while True: time.sleep(0.1)
