@@ -1,6 +1,6 @@
 # acoustic-signature
 
-Let's acoustically imprint speech in real-time with evidence it is not falsified (evidence it is not edited or AI generated, for example).
+Let's acoustically imprint speech in real-time with evidence it is not falsified. Evidence it is not edited or AI generated, for example.
 
 The imprinter transcribes the last window of speech they hear, digitally signs the transcript, then transmits the signature acoustically. 
 Now any sufficiently high-fidelity audio recording contains within it a digital signature of the imprinter's transcript.
