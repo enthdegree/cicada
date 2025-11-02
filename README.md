@@ -1,8 +1,16 @@
 # acoustic-signature
 
-Let's acoustically imprint speech in real-time with evidence that it is not AI-generated.
+Let's acoustically imprint speech in real-time with evidence it is not falsified (evidence it is not edited or AI generated, for example).
 
-We'll listen for a transcript of the last window of the speech, sign it, then transmit an acoustic data frames so that any sufficiently high-fidelity audio recording can recover and validate the signature: if we can match the transcript to the signature, and if we trust the signer, then we have some evidence the audio wasn't AI.
+The imprinter transcribes the last window of speech they hear, digitally signs the transcript, then transmits the signature acoustically. 
+Now any sufficiently high-fidelity audio recording contains within it a digital signature of the imprinter's transcript.
+Listeners can recover these signatures and validate that their recording's transcript matches the signatures. 
+If we trust the imprinter's transcipts, then the validation provides some evidence the recordings aren't falsified.
+
+We stress two key features:
+
+ - It is the signer we need to trust, not whoever is speaking
+ - It is acoustics in the real world that are signed, not any individual's recording data 
 
 Implementation details in [`DESIGN_NOTES.md`](./DESIGN_NOTES.md).
 
@@ -11,8 +19,8 @@ Implementation details in [`DESIGN_NOTES.md`](./DESIGN_NOTES.md).
 ## Applications
 
 - `apps/sign.py` In a loop, transcribe audio and transmit acoustic signatures, signed with your BLS private key
-- `apps/transcribe.py` Form a `transcription.txt` from `recording.wav` 
-- `apps/verify.py` Given `transcription.txt`, `recording.wav` and a BLS public key, produce `transcription_annotated.md` which is annotated with signed portions of the transcription.
+- `apps/extract_frames.py` Extract data frames from `recording.wav`, write them to `frames.csv`
+- `apps/annotate.py` Given `frames.csv`, `recording.wav` and a BLS public key, produce `annotation.md` which is a transcript of `recording.wav`, annotated with matching signatures from `frames.csv`.
 
 ## Underpinnings
 

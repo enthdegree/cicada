@@ -1,4 +1,5 @@
 refs/
+*.md
 *.txt
 *.png
 *.wav
