@@ -5,7 +5,7 @@ Let's acoustically imprint speech in real-time with evidence it is not falsified
 The imprinter transcribes the last window of speech they hear, digitally signs the transcript, then transmits the signature acoustically. 
 Now any sufficiently high-fidelity audio recording contains within it a digital signature of the imprinter's transcript.
 Listeners can recover these signatures and validate that their recording's transcript matches the signatures. 
-If we trust the imprinter's transcipts, then the validation provides some evidence the recordings aren't falsified.
+If we trust BLS short signatures aren't broken, that the imprinter's private key is secure and that the imprinter's transcript is faithful, then valid signatures are evidence a recording isn't falsified.
 
 We stress two key features:
 
