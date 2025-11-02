@@ -13,6 +13,7 @@ We stress two key features:
  - It is acoustics in the real world that are signed, not any individual's recording data 
 
 Implementation details in [`DESIGN_NOTES.md`](./DESIGN_NOTES.md).
+Issues and application criticism are in [`ISSUES.md`](./ISSUES.md).
 
 # Project components 
 
