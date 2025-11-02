@@ -1,6 +1,6 @@
 # Frame assembly and modulation routines
 
-import time, numpy as np
+import time, base64, numpy as np
 from datetime import datetime
 from functools import partial
 from imprint.fsk.waveform import FSKWaveform, FSKParameters, default_mod_table
@@ -23,6 +23,18 @@ demod = FSKDemodulator(cfg=demod_params, wf=wf)
 
 def bits_from_ascii(b): 
 	return np.unpackbits(np.frombuffer(b, dtype=np.uint8), bitorder="big")
+
+def bits_to_base64(b):
+	pad = (-len(b)) % 8
+	if pad: b = np.concatenate([b, np.zeros(pad, np.uint8)])
+	pb = np.packbits(b.reshape(-1,8), bitorder="big").tobytes()
+	return base64.b64encode(pb).decode("ascii")
+
+def bits_to_ascii(b):
+	pad = (-len(b)) % 8
+	if pad: b = np.concatenate([b, np.zeros(pad, np.uint8)])
+	pb = np.packbits(b.reshape(-1,8), bitorder="big").tobytes()
+	return pb.decode("ascii", errors="replace")
 
 def make_frame_bits(v_chars, k=k):
 	v_chars = (str(v_chars.decode('utf-8')) + ' ' + 'ASDFGHJKLZXCVBNMqwertyuiop'*10).encode('ascii')

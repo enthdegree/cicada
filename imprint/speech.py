@@ -2,7 +2,11 @@
 import time, queue, numpy as np, sounddevice as sd
 import re 
 import number_parser 
+from dataclasses import dataclass
 from faster_whisper import WhisperModel
+from faster_whisper.transcribe import Segment, TranscriptionInfo
+from collections.abc import Iterator
+
 model_size = "medium.en"
 model_fs_Hz = 16e3
 window_sec = 10.0
@@ -10,7 +14,18 @@ overlap_sec = 5.0
 mic_blocksize_sam = 1024
 model = WhisperModel(model_size, compute_type="float32")
 
-def regularize_transcript(s):
+@dataclass
+class TranscriptChunk: 
+	seg_iter: Iterator[Segment] # Iterable of whisper model segments
+	info: TranscriptionInfo # Whisper model transcript info
+	idx: int = 0 # Sample where this chunk of the transcript starts
+
+@dataclass 
+class TranscriptToken:
+	text: str # Some text content of the transcript
+	idx: int # Character index of where this text starts in the transcript
+
+def regularize_transcript(s): # Convert a string of english into a list of slightly regularized TranscriptTokens
 	for dash in ("-", "–", "—"): s = s.replace(dash, " ") # replace dashes with space
 	l_tokens = [(m.group(), m.start()) for m in re.finditer(r'\S+', s)] # Split on whitespace to (token, start_index) pairs
 	l_tokens_clean = list()
@@ -18,7 +33,7 @@ def regularize_transcript(s):
 		tok = l_tokens[itok][0].lower() # Lowercase
 		tok = number_parser.parser.parse(tok) # Word to numeric
 		tok = re.sub(r"[^a-z0-9]", "", tok) # Strip non-alphanumeric
-		if len(tok) > 0: l_tokens_clean.append((tok, l_tokens[itok][1]))
+		if len(tok) > 0: l_tokens_clean.append(TranscriptToken(text=tok, idx=l_tokens[itok][1]))
 	return l_tokens_clean
 
 def transcribe_audio_loop(model, q_audio, q_text, debug=True):
