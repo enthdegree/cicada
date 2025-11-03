@@ -3,7 +3,7 @@ import numpy as np
 import sounddevice as sd
 import queue
 import threading
-from imprint import frame_builder, speech
+from imprint import payload, speech
 
 q_mic = queue.Queue()
 q_text = queue.Queue()
@@ -25,14 +25,14 @@ while True:
 		while True: l_words = q_text.get_nowait()
 	except queue.Empty: pass
 	if l_words is None: l_words = q_text.get() 
-	frame_str = ""
-	for word in l_words: frame_str += " " + word[0]
-	print(frame_str)
+	transcript_str = ""
+	for word in l_words: transcript_str += " " + word[0]
+	print(transcript_str)
 
 	# Form and transmit this frame
-	frame_ch = frame_str.encode("ascii")
-	frame_bits = frame_builder.make_frame_bits(frame_ch)
-	frame_samples = frame_builder.make_frame_samples(frame_bits) 
-	sd.play(frame_samples, int(frame_builder.wf.fs_Hz)); 
+	transcript_ch = transcript_str.encode("ascii")
+	frame_bits = payload.make_frame_bits(transcript_ch)
+	frame_samples = payload.make_frame_samples(frame_bits) 
+	sd.play(frame_samples, int(payload.wf.fs_Hz)); 
 	sd.wait()
 
