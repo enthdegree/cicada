@@ -21,7 +21,7 @@ class FSKParameters:
 	bits_per_symbol: int = 1
 	fs_Hz: float = 44100.0
 	fc_Hz: float = 16500.0
-	symbol_rate_Hz: float = 344.53125
+	symbol_rate_Hz: float = (44100.0/128.0)
 	bw_Hz: float = 3000.0
 	hop_factor: int = 63
 	mod_table_fn: Callable[[Any], Any] = partial(default_mod_table, pattern=16)
