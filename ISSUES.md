@@ -13,6 +13,6 @@ It is currently, among other things, annoying-sounding, unreliable, vulnerable t
 # Logic issues
 
 - Frame extraction is naive right now: each frame is compared to the entire transcript
-- `fsk/demodulator.py` uses a naive frame sync strategy. It will not find frames whose contents are highly regular (full of zeros, for example).
-- Write rate-1/2 frame encode/decode
-- Write a bls interface
+- `fsk/demodulator.py` frame sync is unreliable right now. The extremely rudimentary fsk design might be at fault. It will not find frames whose contents are highly regular (full of zeros, for example).
+- Add rate-1/2 frame encode/decode
+- Add a bls interface
