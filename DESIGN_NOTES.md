@@ -5,12 +5,11 @@
 A python script.
 Speech recognition (some Whisper model[1]) goes transcribing a rolling window of text 
 - For each transcript segment, transmit a 512-bit (64 byte) payload:
-	- 128-bit plaintext header:
+	- 128-bit header:
 		- 32 bit unix timestamp
-		- 8 bit int of # of words signed
-		- 8 bits: first char of the first word signed
-		- 80 bits: 10 character message string
-	- 384-bit BLS short signature on the words, lowercase, stripped of formatting, prefixed by the plaintext header
+		- 9 bit int of # of words signed
+		- 88 bits: 11 character message string
+	- 384-bit BLS short signature on the words, lowercase, stripped of formatting, prefixed by the header
 
 The 512-bit payload will be coded to a rate-1/2 LDPC codeword to a frame of 1024 coded bits.
 Assuming 4 words spoken per second (that's pretty fast) a frame is produced once per 4 seconds. 
