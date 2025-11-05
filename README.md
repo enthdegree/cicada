@@ -21,8 +21,7 @@ Issues and application criticism are in [`ISSUES.md`](./ISSUES.md).
 ## Applications
 
 - `apps/sign.py` In a loop, transcribe audio and transmit acoustic signatures, signed with your BLS private key
-- `apps/extract_frames.py` Extract data frames from `recording.wav`, write them to `frames.csv`
-- `apps/annotate.py` Given `frames.csv`, `recording.wav` and a BLS public key, produce `annotation.md` which is a transcript of `recording.wav`, annotated with matching signatures from `frames.csv`.
+- `apps/annotate.py` Given `recording.wav` and a BLS public key, produce `transcript.md` which is a transcript of `recording.wav`, annotated with matching signatures it found therein.
 
 ## Underpinnings
 

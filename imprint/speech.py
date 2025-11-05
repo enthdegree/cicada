@@ -7,6 +7,7 @@ from faster_whisper import WhisperModel
 from faster_whisper.transcribe import Segment, TranscriptionInfo
 from collections.abc import Iterator
 
+# Model definition
 model_size = "medium.en"
 model_fs_Hz = 16e3
 window_sec = 10.0
@@ -14,6 +15,7 @@ overlap_sec = 5.0
 mic_blocksize_sam = 1024
 model = WhisperModel(model_size, compute_type="float32")
 
+# Transcript definition
 @dataclass
 class TranscriptChunk: 
 	seg_iter: Iterator[Segment] # Iterable of whisper model segments
@@ -36,7 +38,21 @@ def regularize_transcript(s): # Convert a string of english into a list of sligh
 		if len(tok) > 0: l_tokens_clean.append(TranscriptToken(text=tok, idx=l_tokens[itok][1]))
 	return l_tokens_clean
 
-def transcribe_audio_loop(model, q_audio, q_text, debug=True):
+def mic_producer(q_audio):
+	def _callback(indata, frames, time_info, status):
+		if status: print("[mic]", status)
+		mono = indata.mean(axis=1).copy()
+		q_audio.put(mono)
+
+	with sd.InputStream(samplerate=model_fs_Hz,
+		channels=1,
+		blocksize=mic_blocksize_sam,
+		dtype="float32",
+		callback=_callback):
+		while True: time.sleep(0.1)
+
+# Transcript producer
+def transcribe_audio_loop(model, q_audio, q_tokens, debug=True):
 	window_samples = int(window_sec * model_fs_Hz)
 	overlap_samples = int(overlap_sec * model_fs_Hz)
 	hop_samples = window_samples - overlap_samples
@@ -101,21 +117,7 @@ def transcribe_audio_loop(model, q_audio, q_text, debug=True):
 		# Reformat and publish transcript
 		str_transcript_raw = " ".join(s.text.strip() for s in segments if s.text)
 		l_tokens = regularize_transcript(str_transcript_raw)
-		if len(l_tokens) > 0: q_text.put(l_tokens) 
+		if len(l_tokens) > 0: q_tokens.put(l_tokens) 
 		if debug:
 			print("[debug] got regularized string")
-
-def mic_producer(q_audio):
-	def _callback(indata, frames, time_info, status):
-		if status: print("[mic]", status)
-		mono = indata.mean(axis=1).copy()
-		q_audio.put(mono)
-
-	with sd.InputStream(samplerate=model_fs_Hz,
-		channels=1,
-		blocksize=mic_blocksize_sam,
-		dtype="float32",
-		callback=_callback):
-		while True: time.sleep(0.1)
-
 

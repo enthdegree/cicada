@@ -1,8 +1,10 @@
 numpy
 scipy
 regex
+pyblst
+pyldpc
 soundfile
-souddevice
+sounddevice
 matplotlib
 number_parser
 faster_whisper

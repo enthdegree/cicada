@@ -3,7 +3,7 @@ import sys, csv, numpy as np
 import re, base64
 from imprint import payload 
 
-discard_frame_thresh = 30 # If we get more than this many non-alphanumeric chars then throw this frame away
+discard_frame_thresh = 1000 # If we get more than this many non-alphanumeric chars then throw this frame away
 
 def load_wav(path):
 	try:
@@ -35,7 +35,7 @@ def main():
 			print(f'Location: {frame_start_sam} ({frame_start_sec} s)')
 			fr = frames[0][iframe]			
 			ll = fr.log_likelihood[0,:].ravel()-fr.log_likelihood[1,:].ravel() 
-			bits_dec = payload.dec_ll(ll)
+			bits_dec = payload.ldpc_dec_ll(ll)
 			ch_dec = "".join("1" if (b>0) else "0" for b in bits_dec) 
 			ch_msg = payload.bits_to_ascii(bits_dec) 
 
@@ -43,7 +43,7 @@ def main():
 			if n_bad > discard_frame_thresh:
 				print('[bad frame]')
 				continue
-			print(ch_msg)
+			#print(ch_msg)
 			w.writerow([frame_start_sam, payload.bits_to_base64(bits_dec)])
 
 if __name__ == "__main__":

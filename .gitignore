@@ -1,4 +1,3 @@
-refs/
 *.md
 *.txt
 *.png
@@ -7,7 +6,12 @@ refs/
 *.flac
 *.zip
 *.csv
+*.so
+*.bls
+*.bin
 archive/
+refs/
+blst/
 
 # Created by https://www.toptal.com/developers/gitignore/api/emacs,linux,windows,osx,microsoftoffice,latex,python,vim,vi
 # Edit at https://www.toptal.com/developers/gitignore?templates=emacs,linux,windows,osx,microsoftoffice,latex,python,vim
