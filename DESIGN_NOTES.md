@@ -12,7 +12,7 @@ A payload is comprised of these data fields:
 - 128-bit header
 	- `bits  0-31`: 32 bit unix timestamp
 	- `bits 32-39`: 8 bit int of # of words this payload's signature represents
-	- `bits 40-128`: 11 character ascii plaintext message 
+	- `bits 40-128`: 11 character ascii plaintext header message 
 - 384-bit signature
 	-  `bits 129-512`: 48 byte BLS short signature on a regularized list of transcript words
 

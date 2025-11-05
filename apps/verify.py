@@ -1,7 +1,7 @@
-"""A counterpart to tx_raw_transcription.py, this script does the following:
+"""	
 1. Transcribe a wav to English
 2. Look for data frames in the wav
-3. Match the data frames (assumed to contain transcriptions) to the Step 1 transcription 
+3. Match the data frames (assumed to contain Payloads) to the Step 1 transcription 
 4. Annotate the Step 1 transcription with matches
 """
 import sys, csv, re, base64
@@ -9,6 +9,7 @@ import soundfile as sf
 import numpy as np
 from math import gcd
 from imprint import speech
+from imprint import payload
 from imprint.speech import TranscriptChunk
 from scipy.signal import resample_poly
 from dataclasses import dataclass
@@ -16,10 +17,14 @@ from faster_whisper import WhisperModel
 
 # Model used for transcribing input .wav to english
 window_sec = 10.0
-overlap_sec = 5.0
+overlap_sec = 8.0
 transcription_model_name = "medium.en" 
 transcription_model_fs_Hz = 16e3
 transcription_model = WhisperModel(transcription_model_name, compute_type="float32")
+
+# BLS key properties
+bls_pubkey_file = "./bls_pubkey.bin"
+with open(bls_pubkey_file, "rb") as f: bls_pubkey_bytes = f.read()
 
 def load_csv(path): # Load a csv list of transcripts
 	l_base64 = list()
@@ -30,10 +35,13 @@ def load_csv(path): # Load a csv list of transcripts
 			l_base64.append(row['frame_base64'])
 			l_payload_start_sam.append(int(row['frame_start_sam']))
 	l_payloads = list()
-	for p in l_base64:
-		p_txt = base64.b64decode(p).decode('ascii', errors='ignore')
-		p_txt = re.match(r"[a-z0-9 ]*", p_txt).group(0)
-		l_payloads.append(p_txt.split())
+	for pl_b64 in l_base64:
+		pl_ch = base64.b64decode(pl_b64)
+		pl = payload.ch_to_payload(pl_ch)
+		n_bad = sum(ord(ch) > 127 for ch in pl.header_message)
+		if not n_bad: 
+			print(f"Payload found with timestamp {int(pl.timestamp)}; header message: {pl.header_message}")
+			l_payloads.append(pl)
 	return l_payloads, l_payload_start_sam
 	
 def load_wav(path):
@@ -112,12 +120,16 @@ def annotate_chunk(chunk_text, l_tokens, l_payloads, l_match_idx, l_payload_star
 	l_fn = []
 	for idxfn in range(n_fn):
 		idxpl = l_payload_idx[idxfn]
-		n_matched_words = len(l_payloads[idxpl])
-		idxsam = l_payloads[idxpl]
-		pl_start_sam = l_payload_start_sam[idxpl]
-		pl_start_sec = pl_start_sam/wav_fs_Hz
-		l_fn.append(f"Payload {idxpl} matches the following {n_matched_words} words, which stated at sample {pl_start_sam} ({pl_start_sec:.2f} sec)")
-	notes_md = "\n".join(f"[{idxfn+1}]: {l_fn[idxfn]}" for idxfn in range(n_fn))
+		pl = l_payloads[idxpl]
+		start_sam = l_payload_start_sam[idxpl]
+		start_sec = start_sam/wav_fs_Hz
+		l_fn.append((
+			idxpl+1,
+			f"Payload at timestamp {int(pl.timestamp)} " + 
+			f"matches the following {pl.word_count} words, " +
+			f"which stated at sample {start_sam} ({start_sec:.2f} sec). " +
+			f"Header message: {pl.header_message}"))
+	notes_md = "\n".join(f"[{l_fn[idxfn][0]}]: {l_fn[idxfn][1]}" for idxfn in range(n_fn))
 	return f"{body_md}\n\n{notes_md}" if notes_md else body_md
 
 if __name__ == "__main__":
@@ -143,10 +155,12 @@ if __name__ == "__main__":
 		for seg in list(chunk.seg_iter): chunk_text += seg.text
 		l_tokens = speech.regularize_transcript(chunk_text)
 		
-		# Compare our payloads to these tokens
+		# Compare our payloads to this list of tokens
 		l_tswords = [tok.text for tok in l_tokens]
 		l_match_idx = [] # i-th entry is the index of the i-th payload's first appearance in the chunk
-		for p in l_payloads: l_match_idx.append(find_sublist(l_tswords,p))
+		for pl in l_payloads: 
+			ii = payload.find_payload_in_token_list(pl, l_tokens, bls_pubkey_bytes)
+			l_match_idx.append(ii)
 
 		# Create markdown for this chunk
 		chunk_md = annotate_chunk(chunk_text, l_tokens, l_payloads, l_match_idx, l_payload_start_sam, wav_fs_Hz)
