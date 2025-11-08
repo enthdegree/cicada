@@ -34,7 +34,7 @@ def ldpc_enc_bits(b): # b must have length k
 	return (ldpc_G @ b) % 2
 
 def ldpc_dec_ll(ll): # ll ~ log(P(b=0)/P(b=1))
-	dec = pyldpc.decode(ldpc_H, ll, snr=0, maxiter=100)
+	dec = pyldpc.decode(ldpc_H, ll, snr=0, maxiter=300)
 	return dec[:k]
 
 # Payload definition and management
