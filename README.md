@@ -1,38 +1,60 @@
-# acoustic-signature
+# cicada
+
+<p align="center">
+  <img src="header_image.jpg" alt="malaise" width="50%">
+</p>
 
 Let's acoustically imprint speech in real-time with evidence it is not falsified. Evidence it is not edited or AI generated, for example.
 
-The imprinter transcribes the last window of speech they hear, digitally signs the transcript, then transmits the signature acoustically. 
-Now any sufficiently high-fidelity audio recording contains within it a digital signature of the imprinter's transcript.
-Listeners can recover these signatures and validate that their recording's transcript matches the signatures. 
-If we trust the imprinter[1] then valid signatures are evidence their respective recording segments aren't falsified.
+We (the signers) will transcribe the last window of speech we hear into English, digitally sign the transcript, then transmit the digital signature acoustically. 
+Now any sufficiently high-fidelity audio recording contains within it our attestation of the words we heard moments ago.
+
+People who such a recording can extract our signatures from it and validate that they indeed match what is being said. 
+Our attestations are evidence those recordings are not falsified.[1]
 
 We stress two features:
 
- - It is the signer we need to trust, not whoever is speaking
- - Real-world acoustics are signed, not any individual's recording data 
+ - It is the signer that needs to be trusted, not whoever is speaking
+ - Real-world acoustics are signed, not any individual's recording 
 
-Implementation details in [`DESIGN_NOTES.md`](./DESIGN_NOTES.md).
+Implementation details in [`DESIGN_NOTES.md`](./DESIGN_NOTES.md). Issues and application criticism are in [`ISSUES.md`](./ISSUES.md).
 
-Issues and application criticism are in [`ISSUES.md`](./ISSUES.md).
+## Setup
 
-# Project components 
+````
+	# Make a python venv and install the requirements
+	python3 -m venv venv
+	source venv/bin/activate
+	pip install --upgrade pip
+	pip install -r requirements.txt
 
-## Applications
+	# Get BLST bindings for python (crypto library)
+	git clone https://github.com/supranational/blst
+	cd blst/bindings/python
+	python3 run.me
+	mv blst.py _blst.*.so ../../..
 
-- `apps/sign.py` In a loop, transcribe audio and transmit acoustic signatures, signed with your BLS private key
-- `apps/annotate.py` Given `recording.wav` and a BLS public key, produce `transcript.md` which is a transcript of `recording.wav`, annotated with matching signatures it found therein.
+	# Make a private key
+	python3 ./make_bls_keys.py
+````
+
+## Usage 
+One can use `cicada.py` as an interface to the individual components. 
+
+- `cicada.py sign` In a loop, transcribe audio from your mic and transmit acoustic signatures, signed with your BLS private key, through the loudspeaker
+- `cicada.py verify` Given `recording.wav` and a BLS public key, produce `transcript.md` which is a transcript of `recording.wav`, annotated with matching signatures it found therein. 
+- `cicada.py extract` Pull digital data frames out of a recording for later verification/debugging. You may be interested in the `--plot` flag here
+- `make_bls_keys.py` Generates a BLS keypair
 
 ## Underpinnings
 
-- `imprint/frame.py` Frame assembly routines and waveform mod/demod object construction
-- `imprint/speech.py` Speech transcription routines
-- `imprint/fsk/` Physical-layer acoustic waveform
-	- `fsk/waveform.py` Python defining the audio waveform and its modulation
-	- `fsk/demodulate.py` Python demodulator for recordings
-- `imprint/tests/` Tests used for waveform development
+- `cicada/speech.py` Speech transcription routines
+- `cicada/payload.py` Payload construction, signing, and verification helpers
+- `cicada/modem.py` Waveform/demodulator construction and modulation helpers
+- `cicada/fsk/` Physical-layer acoustic waveform
+	- `cicada/fsk/waveform.py` Python defining the audio waveform and its modulation
+	- `cicada/fsk/demodulate.py` Python demodulator for recordings
 
 ---
 
 [1]: That is, we trust BLS short signatures aren't broken, that the imprinter's private key is secure and that the imprinter's transcript is faithful.
-

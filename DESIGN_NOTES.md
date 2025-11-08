@@ -1,6 +1,6 @@
 # Application details 
 
-# `apps/sign.py` Signer (transmit-side) description 
+# `cicada.py sign`: Signer (transmit-side) 
 
 Speech recognition (some Whisper model[1]) goes transcribing a rolling window of text every few seconds (configurable, defaults to once per ~5s).
 From each transcription a 512-bit (64 byte) data payload is formed, described below.
@@ -18,7 +18,7 @@ A payload is comprised of these data fields:
 
 The payload is block-coded using a (1026,513) binary LDPC code to form a frame of 1026 coded binary symbols.
 
-# `apps/verify.py` Verifier (receive-side) description
+# `cicada.py verify`: Verifier (receive-side)
 
 Run a python script to annotate and verify some audio recording. 
 From this recording the listener recovers a full speech transcript and a bundle of payloads.

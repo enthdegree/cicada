@@ -8,11 +8,11 @@ import matplotlib.pyplot as plt
 
 @dataclass 
 class FSKDemodulatorParameters: 
-	symbols_per_frame: int = 1026 # number of coded symbols per frame
+	symbols_per_frame: int = 1024 # number of coded symbols per frame
 	frame_search_win: float = 1.2 # search window length in # of frames
 	frame_search_win_step: float = 0.3 # search window shift length in # of frames
-	pulse_frac: int = 16 # fraction of a pulse to use in pulse search
-	median_window_len_pulses: int = 4
+	pulse_frac: int = 8 # fraction of a pulse to use in pulse search
+	median_window_len_pulses: int = 8
 	plot: bool = True
 
 @dataclass 
@@ -46,11 +46,11 @@ class FSKDemodulator:
 		C = self.wf.pulses_cos @ X
 		S = self.wf.pulses_sin @ X
 		M = C * C + S * S
-		M_eq = M / (np.median(M, axis=1, keepdims=True)  + 1e-12) # Mic might not be equally sensitive to each pulse
+		M_eq = M / (np.mean(M, axis=1, keepdims=True)  + 1e-12) # Mic might not be equally sensitive to each pulse
 		filtsz = int(self.median_window_len_pulses*self.pulse_frac/2)*2 + 1
 		M_base = medfilt(M_eq, kernel_size=(1,filtsz))
 		M_filt = M_eq - M_base # Heuristic to mitigate bias from transients and ISI
-		return M_filt
+		return M_eq # M_filt
 
 	def symbol_energy_map(self, Ep: np.ndarray, start: int) -> np.ndarray:
 		"""Assuming a frame at col `start` of Ep, gather the frame's symbol
@@ -76,7 +76,7 @@ class FSKDemodulator:
 		P = np.exp(Z - Zmax)
 		P /= np.sum(P, axis=0, keepdims=True)
 		LL = np.log(P)
-		return FSKDemodulatorResult(pulse_map_idx=start, syms=syms, log_likelihood=LL)
+		return FSKDemodulatorResult(pulse_map_idx=start, syms=syms, log_likelihood=P)
 
 	def frame_energy_map(self, Ep: np.ndarray) -> np.ndarray:
 		"""Given a map of pulse energies, find the vector Ef where Ef[i] is 
