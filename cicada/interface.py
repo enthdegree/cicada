@@ -47,7 +47,7 @@ def add_debug_flag(parser: ArgumentParser):
 def add_waveform_args(parser: ArgumentParser):
 	parser.add_argument("--wf-bits-per-symbol", type=int, default=1, help="Number of bits per FSK symbol.")
 	parser.add_argument("--wf-fs", type=float, default=44100.0, help="Sample rate (Hz).")
-	parser.add_argument("--wf-fc", type=float, default=16500.0, help="Carrier center frequency (Hz).")
+	parser.add_argument("--wf-fc", type=float, default=17500.0, help="Carrier center frequency (Hz).")
 	parser.add_argument("--wf-symbol-rate", type=float, default=(44100.0 / 128.0), help="Symbol rate (Hz).")
 	parser.add_argument("--wf-bw", type=float, default=3000.0, help="Waveform bandwidth (Hz).")
 	parser.add_argument("--wf-hop-factor", type=int, default=63, help="Frequency hop factor.")
@@ -60,9 +60,9 @@ def build_waveform_parameters(args) -> FSKParameters:
 		fs_Hz=args.wf_fs,
 		fc_Hz=args.wf_fc,
 		symbol_rate_Hz=args.wf_symbol_rate,
+		symbols_per_frame=args.wf_symbols_per_frame,
 		bw_Hz=args.wf_bw,
 		hop_factor=args.wf_hop_factor,
-		symbols_per_frame=args.wf_symbols_per_frame,
 		mod_table_fn=partial(default_mod_table, pattern=args.wf_mod_pattern),
 	)
 
@@ -87,7 +87,6 @@ def add_demod_args(parser: ArgumentParser):
 
 def build_demodulator_parameters(args, wf: FSKWaveform) -> FSKDemodulatorParameters:
 	return FSKDemodulatorParameters(
-		symbols_per_frame=wf.symbols_per_frame,
 		frame_search_win=args.demod_frame_search_win,
 		frame_search_win_step=args.demod_frame_search_step,
 		pulse_frac=args.demod_pulse_frac,

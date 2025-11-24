@@ -130,6 +130,7 @@ def main(argv: list[str] | None = None):
 			demod_highpass=args.demod_highpass,
 			demod_plot=args.demod_plot,
 			use_ldpc=args.use_ldpc,
+			discard_duplicate_frames=args.discard_duplicate_frames,
 		)
 		print("[verify] no frames CSV provided; extracting frames first...")
 		frames_csv = extract_cli.extract_payloads(extract_args)

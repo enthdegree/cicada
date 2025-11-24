@@ -95,8 +95,8 @@ def run(args: argparse.Namespace):
 		pl = payload_cls.from_transcript(chunk_text, **payload_kwargs)
 		pl_bytes = pl.to_bytes()
 
-		frame_samples = modem.modulate_frame(pl_bytes)
-		sd.play(frame_samples, wf.fs_Hz)
+		sam = modem.modulate_bytes(pl_bytes)
+		sd.play(sam, wf.fs_Hz)
 		sd.wait()
 
 def main(argv: list[str] | None = None):

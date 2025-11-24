@@ -27,7 +27,7 @@ POST_PAD_SEC = 0.1
 PLAINTEXT_LEN = 128
 N_PAYLOADS = 5
 PAYLOAD_TEXTS: list[str] = []  # leave empty to auto-generate randomized phrases
-OUTPUT_WAV = Path("plaintext_payload_roundtrip.wav")
+OUTPUT_WAV = Path("out") / "plaintext_payload_roundtrip.wav"
 PLOT_DEMOD = True
 # ----------------------------------------------------------------------------
 

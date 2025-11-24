@@ -21,25 +21,25 @@ Implementation details in [`DESIGN_NOTES.md`](./DESIGN_NOTES.md). Issues and app
 
 ## Setup
 
-````
-	# Make a python venv and install the requirements
-	python3 -m venv venv
-	source venv/bin/activate
-	pip install --upgrade pip
-	pip install -r requirements.txt
+``` bash
+# Make a python venv and install the requirements
+python3 -m venv venv
+source venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
 
-	# Build BLST and Python bindings, move them to the project root 
-	git clone https://github.com/supranational/blst
-	cd blst/bindings/python
-	python3 run.me
-	mv blst.py _blst.*.so ../../..
+# Build BLST and Python bindings, move them to the project root 
+git clone https://github.com/supranational/blst
+cd blst/bindings/python
+python3 run.me
+mv blst.py _blst.*.so ../../..
 
-	# Make a private key
-	python3 ./make_bls_keys.py
-````
+# Make a private key
+python3 ./make_bls_keys.py
+```
 
 ## Usage 
-One can use `cicada.py` as an interface to the individual components. 
+`cicada.py` is an interface to Cicada's individual applets. 
 
 - `cicada.py sign` In a loop, transcribe audio from your mic and transmit acoustic signatures, signed with your BLS private key, through the loudspeaker
 - `cicada.py verify` Given `recording.wav` and a BLS public key, produce `transcript.md` which is a transcript of `recording.wav`, annotated with matching signatures it found therein. 

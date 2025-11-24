@@ -62,7 +62,7 @@ def extract_payloads(args) -> Path:
 	modem, wf, demod = interface.build_modem(args, out_dir)
 
 	payload_cls = payload.get_payload_class(args.payload_type)
-	l_frames, l_frame_start_idx = modem.recover_frames(in_sam)
+	l_frames, l_frame_start_idx = modem.recover_bytes(in_sam)
 	print(f"[extract] recovered {len(l_frames)} frames")
 
 	l_payloads, l_payload_start = payload_cls.decode_frames(
