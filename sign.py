@@ -28,6 +28,7 @@ def build_parser() -> argparse.ArgumentParser:
 	parser.add_argument("--window-sec", type=float, default=10.0, help="Transcription window length (s).")
 	parser.add_argument("--overlap-sec", type=float, default=5.0, help="Transcription window overlap (s).")
 	parser.add_argument("--mic-blocksize", type=int, default=1024, help="Audio blocksize for microphone capture.")
+	parser.add_argument("--signer-transcript", type=Path, default=None, help="Optional path to log raw transcript chunks.")
 	parser.add_argument("--header-message", default="q3q.net", help="Header message for SignaturePayloads.")
 	parser.add_argument("--bls-privkey", type=Path, default=Path("bls_privkey.bin"), help="Path to BLS private key.")
 	parser.add_argument("--bls-pubkey", type=Path, default=Path("bls_pubkey.bin"), help="Path to BLS public key.")
@@ -53,10 +54,19 @@ def run(args: argparse.Namespace):
 		kwargs={"mic_blocksize_sam": args.mic_blocksize},
 		daemon=True,
 	)
+	transcript_writer = None
+	if args.signer_transcript:
+		transcript_path = interface.resolve_output_path(out_dir, args.signer_transcript)
+		transcript_writer = speech.TranscriptLogger(transcript_path)
 	t_transcriber = threading.Thread(
 		target=speech.audio_transcript_worker,
 		args=(model, q_mic, q_transcripts),
-		kwargs={"window_sec": args.window_sec, "overlap_sec": args.overlap_sec, "debug": args.debug},
+		kwargs={
+			"window_sec": args.window_sec,
+			"overlap_sec": args.overlap_sec,
+			"debug": args.debug,
+			"transcript_writer": transcript_writer,
+		},
 		daemon=True,
 	)
 	t_mic.start()

@@ -1,5 +1,6 @@
 """Utilities for comparing transcription chunks to SignaturePayloads."""
-import time, numpy as np
+import time, numpy as np, re
+from pathlib import Path
 from cicada import speech
 from cicada.speech import WhisperTranscriptionChunk
 
@@ -83,11 +84,22 @@ def annotate_chunk(chunk_text, l_tokens, l_payloads, l_match_idx, l_payload_star
 		fn = make_footnote(l_payloads[idxpl], idxpl+1, l_payload_start_sam[idxpl], wav_fs_Hz)
 		l_footnotes.append(fn)
 	notes_md = "\n".join(l_footnotes)
-	return f"{body_md}\n\n{notes_md}\n\n" if notes_md else body_md
+	return f"{body_md}\n\n{notes_md}\n\n" if notes_md else f"{body_md}\n\n" if body_md else "\n"
 
 def write_appendix_md(l_payloads, l_payload_start_sam=None, wav_fs_Hz: float = 44100.0) -> str:
-	appendix_md = "\n\n# Appendix: All Detected Payloads\n"
+	appendix_md = "# Appendix: All Detected Payloads\n"
 	lines = []
 	for idxpl, pl in enumerate(l_payloads):
 		lines.append(f"[{idxpl+1}]: {pl.describe(l_payload_start_sam[idxpl], wav_fs_Hz)}")
-	return appendix_md + "\n".join(lines) + "\n"
+	return appendix_md + "\n".join(lines) 
+
+def load_markdown_transcript(path: Path):
+	raw = path.read_text(encoding="utf-8")
+	lines = []
+	for line in raw.splitlines():
+		if line.lstrip().startswith("#"):
+			continue
+		if re.match(r"^\s*\[.*\]", line):
+			continue
+		lines.append(line)
+	return "\n".join(lines)

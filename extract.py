@@ -30,7 +30,7 @@ def build_parser() -> argparse.ArgumentParser:
 	parser.add_argument(
 		"--output-csv",
 		type=Path,
-		default=Path("frames.csv"),
+		default=None,
 		help="Filename (relative to out-dir unless absolute) for extracted payload metadata.",
 	)
 	parser.add_argument(
@@ -49,7 +49,11 @@ def load_audio(path: Path) -> tuple[np.ndarray, int]:
 
 def extract_payloads(args) -> Path:
 	out_dir = interface.ensure_output_dir(args.out_dir)
-	output_csv = interface.resolve_output_path(out_dir, args.output_csv)
+	if args.output_csv is None:
+		default_name = f"{Path(args.input_wav).stem}_frames.csv"
+		output_csv = interface.resolve_output_path(out_dir, Path(default_name))
+	else:
+		output_csv = interface.resolve_output_path(out_dir, args.output_csv)
 
 	print(f"[extract] loading waveform from {args.input_wav}")
 	in_sam, fs = load_audio(args.input_wav)

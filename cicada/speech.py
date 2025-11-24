@@ -3,6 +3,8 @@ import time, queue, re, number_parser, numpy as np, soundfile as sf, sounddevice
 from dataclasses import dataclass
 from math import gcd
 from collections.abc import Iterator
+from pathlib import Path
+from datetime import datetime, timezone
 from scipy.signal import resample_poly
 from faster_whisper.transcribe import Segment, TranscriptionInfo
 
@@ -54,7 +56,7 @@ def mic_worker(q_audio, mic_blocksize_sam=1024): # Microphone sample producer
 		callback=_callback):
 		while True: time.sleep(0.1)
 
-def audio_transcript_worker(model, q_audio, q_tokens, window_sec=10.0, overlap_sec=5.0, debug=True): # Audio transcription producer
+def audio_transcript_worker(model, q_audio, q_tokens, window_sec=10.0, overlap_sec=5.0, debug=True, transcript_writer=None): # Audio transcription producer
 	window_samples = int(window_sec * whisper_model_fs_Hz)
 	overlap_samples = int(overlap_sec * whisper_model_fs_Hz)
 	hop_samples = window_samples - overlap_samples
@@ -91,5 +93,25 @@ def audio_transcript_worker(model, q_audio, q_tokens, window_sec=10.0, overlap_s
 
 		str_transcript_raw = " ".join(s.text.strip() for s in segments if s.text)
 		if str_transcript_raw:
+			if transcript_writer is not None:
+				transcript_writer.write_chunk(str_transcript_raw, timestamp=time.time())
 			q_tokens.put(str_transcript_raw)
 			if debug: print("[transcript worker] published transcript chunk")
+
+class TranscriptLogger:
+	"""Append-only markdown transcript logger."""
+	def __init__(self, path: Path):
+		self.path = path
+		self.path.parent.mkdir(parents=True, exist_ok=True)
+		self._fh = open(self.path, "a", encoding="utf-8")
+		self._fh.write("# Signer Transcript\n\n")
+
+	def write_chunk(self, chunk_text: str, timestamp: float | None = None):
+		ts = timestamp if timestamp is not None else time.time()
+		ts_str = datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+		self._fh.write(f"## {ts_str}\n")
+		self._fh.write(chunk_text.rstrip() + "\n\n")
+		self._fh.flush()
+
+	def close(self):
+		self._fh.close()
