@@ -6,18 +6,18 @@
 
 Let's acoustically imprint speech in real-time with evidence it is not falsified. Evidence it is not edited or AI generated, for example.
 
-We (the signers) will transcribe the last window of speech we hear into English, digitally sign the transcript, then transmit the digital signature acoustically. 
-Now any sufficiently high-fidelity audio recording contains within it our attestation of the words we heard moments ago.
+We (the signers) will transcribe the last window of speech we hear into English, digitally sign the transcript, then broadcast the signature as sound. 
 
-People who such a recording can extract our signatures from it and validate that they indeed match what is being said. 
-Our attestations are evidence those recordings are not falsified.[1]
+Now any sufficiently high-fidelity audio recording contains within it our attestation of the words we heard moments ago, that is, evidence they are not falsified.[1]
+Anyone who posesses such a recording and our BLS public key can extract our signatures from it and validate they match the recording.  
 
 We stress two features:
 
  - It is the signer that needs to be trusted, not whoever is speaking
- - Real-world acoustics are signed, not any individual's recording 
+ - Real-world acoustics carry the signature, not any individual's recording 
 
-Implementation details in [`DESIGN_NOTES.md`](./DESIGN_NOTES.md). Issues and application criticism are in [`ISSUES.md`](./ISSUES.md).
+Implementation details in [`DESIGN_NOTES.md`](./DESIGN_NOTES.md). 
+**IMPORTANT Issues and criticism are in [`ISSUES.md`](./ISSUES.md).**
 
 ## Setup
 
@@ -34,12 +34,12 @@ cd blst/bindings/python
 python3 run.me
 mv blst.py _blst.*.so ../../..
 
-# Make a private key
+# Generate a BLS key pair
 python3 ./make_bls_keys.py
 ```
 
 ## Usage 
-`cicada.py` is an interface to Cicada's individual applets. 
+`cicada.py` is an interface to cicada's individual applets. 
 
 - `cicada.py sign` In a loop, transcribe audio from your mic and transmit acoustic signatures, signed with your BLS private key, through the loudspeaker
 - `cicada.py verify` Given `recording.wav` and a BLS public key, produce `transcript.md` which is a transcript of `recording.wav`, annotated with matching signatures it found therein. 
@@ -49,12 +49,11 @@ python3 ./make_bls_keys.py
 ## Underpinnings
 
 - `cicada/speech.py` Speech transcription routines
-- `cicada/modem.py` Convert data bits to/from audio samples
-- `cicada/payload/` Payload definitions
-- `cicada/verification.py` Utilities to compare `SignaturePayloads` to transcript text
 - `cicada/fsk/` Physical-layer acoustic waveform
-	- `cicada/fsk/waveform.py` Python defining the audio waveform and its modulation
-	- `cicada/fsk/demodulate.py` Python demodulator for recordings
+- `cicada/modem.py` Abstraction over `fsk/` to convert data bits to/from audio samples
+	- Has some hardcoded features like an LDPC code and a bitmask (excess regularity in the data frames can degrade demod)
+- `cicada/payload/` Digital audio payload definitions
+- `cicada/verification.py` Utilities to compare cicada payloads to transcripts
 
 ---
 

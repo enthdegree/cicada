@@ -2,7 +2,6 @@
 Modem is the glue that abstracts modulation, demodulation, FEC, etc.
 Includes a default 1024-bit LDPC code construction.
 """
-from __future__ import annotations
 
 import warnings
 import numpy as np
@@ -21,7 +20,6 @@ d_v = 2 # variable node degree
 d_c = 4 # check node degree
 np.random.seed(0)
 ldpc_H, ldpc_G = pyldpc.make_ldpc(n_ldpc_code_sym_per_frame, d_v, d_c, systematic=True, sparse=True)
-default_bit_mask = np.random.randint(0, 2, size=n_ldpc_code_sym_per_frame, dtype=np.uint8)
 def ldpc_enc_bits(b, ldpc_G=ldpc_G):
 	if b.size != n_ldpc_data_bits_per_frame:
 		raise ValueError(f"LDPC encoder expects {n_ldpc_data_bits_per_frame} bits (got {b.size}).")
@@ -37,15 +35,17 @@ class Modem:
 		self.bit_modulator = wf.modulate_frame
 		self.demodulator = demodulator
 		self.use_bit_mask = use_bit_mask
-		self.bit_mask = default_bit_mask.copy() if use_bit_mask else None
 		self.discard_duplicate_frames = discard_duplicate_frames
-
-		self.data_bits_per_frame = min(n_ldpc_data_bits_per_frame, wf.symbols_per_frame * wf.bits_per_symbol)
+		self.data_bits_per_frame = wf.symbols_per_frame * wf.bits_per_symbol
 		self.bytes_per_frame = self.data_bits_per_frame // 8
-
-		if use_ldpc and demodulator is not None: # Ensure demodulator's compatibility with default LDPC construction
-			if (not (wf.symbols_per_frame == n_ldpc_code_sym_per_frame)) or (not (demodulator.wf.bits_per_symbol == 1)):
-				raise ValueError("Modem was constructed to use the default binary LDPC construction, but the waveform objects are incompatible (demod.symbols_per_frame is bad or wf.bits_per_symbol is bad).")
+		self.bit_mask = None
+		if use_ldpc: # Ensure compatibility with default LDPC construction
+			if (wf.symbols_per_frame != n_ldpc_code_sym_per_frame) or (wf.bits_per_symbol != 1):
+				raise ValueError("LDPC enabled but waveform is incompatible with the construction hard-coded into modem.py (expected wf.symbols_per_frame=1024, wf.bits_per_symbol=1).")
+		if use_bit_mask:
+			rng = np.random.default_rng(0)
+			mask_len = n_ldpc_data_bits_per_frame if use_ldpc else self.data_bits_per_frame
+			self.bit_mask = rng.integers(0, 2, size=mask_len, dtype=np.uint8)
 		self.bit_error_correction_encoder = ldpc_enc_bits if use_ldpc else no_fec_encoder
 		self.bit_error_correction_decoder = ldpc_dec_bit_llrs if use_ldpc else no_fec_decoder
 

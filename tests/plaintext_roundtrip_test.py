@@ -31,7 +31,7 @@ OUTPUT_WAV = Path("out") / "plaintext_payload_roundtrip.wav"
 PLOT_DEMOD = True
 # ----------------------------------------------------------------------------
 
-PLAINTEXT_CLASS = payload.get_payload_class("plaintext")
+PLAINTEXT_CLASS = payload.Payload.get_class("plaintext")
 DEFAULT_WORDS = [
 	"alpha","bravo","charlie","delta","echo","foxtrot","golf","hotel","india","juliet",
 	"kilo","lima","mike","november","oscar","papa","quebec","romeo","sierra","tango",
@@ -131,13 +131,13 @@ def main():
 		match_indices = [j for j, matches in enumerate(l_matches_who) if i in matches]
 		if match_indices:
 			match_str = ", ".join(str(j+1) for j in match_indices)
-			print(f"Expected payload {i+1} at sample {start} matched recovered payload(s): {match_str}")
+			print(f"Payload {i+1} at sample {start} matched recovered payload(s): {match_str}")
 		else:
-			print(f"Expected payload {i+1} at sample {start} matched recovered payload(s): none")
+			print(f"Payload {i+1} at sample {start} matched recovered payload(s): none")
 
 	for j, matches in enumerate(l_matches_who):
 		if not matches:
-			print(f"Payload found at index {start_idxs[j]} does not match any expected payloads.")
+			print(f"Payload found at index {start_idxs[j]} does not match any of the expected ones.")
 
 	n_matched = sum(1 for i in range(len(l_payloads)) if any(i in matches for matches in l_matches_who))
 	print(f"Summary: {n_matched}/{len(l_payloads)} payloads matched")

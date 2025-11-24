@@ -1,5 +1,5 @@
 """Speech transcription & transcript regularization utilities."""
-import time, queue, re, number_parser, numpy as np, soundfile as sf, sounddevice as sd
+import time, queue, numpy as np, soundfile as sf, sounddevice as sd
 from dataclasses import dataclass
 from math import gcd
 from collections.abc import Iterator
@@ -16,11 +16,6 @@ class WhisperTranscriptionChunk:
 	info: TranscriptionInfo # Whisper model transcript info
 	idx: int = -1 #  (if applicable) Sample index of the .wav file where this chunk started
 
-@dataclass 
-class TranscriptToken:
-	text: str # Some text content of the transcript
-	idx: int # Character index of where this text starts in the transcript
-
 def load_wav(path):
 	samples_for_model, wav_fs_Hz = sf.read(path)
 	if samples_for_model.ndim > 1: # to mono
@@ -31,17 +26,6 @@ def load_wav(path):
 		down = wav_fs_Hz / g
 		samples_for_model = resample_poly(samples_for_model, up, down)
 	return samples_for_model, wav_fs_Hz
-
-def regularize_transcript(s): # Convert a string of english into a list of regularized TranscriptTokens
-	for dash in ("-", "–", "—"): s = s.replace(dash, " ") # replace dashes with space
-	l_tokens = [(m.group(), m.start()) for m in re.finditer(r'\S+', s)] # Split on whitespace to (token, start_index) pairs
-	l_tokens_clean = list()
-	for itok in range(len(l_tokens)): # Clean each token in the list
-		tok = l_tokens[itok][0].lower() # Lowercase
-		tok = number_parser.parser.parse(tok) # Word to numeric
-		tok = re.sub(r"[^a-z0-9]", "", tok) # Strip non-alphanumeric
-		if len(tok) > 0: l_tokens_clean.append(TranscriptToken(text=tok, idx=l_tokens[itok][1]))
-	return l_tokens_clean
 
 def mic_worker(q_audio, mic_blocksize_sam=1024): # Microphone sample producer
 	def _callback(indata, frames, time_info, status):

@@ -1,5 +1,4 @@
 """Signature payload implementation."""
-from __future__ import annotations
 
 import base64
 import csv
@@ -8,12 +7,9 @@ import time
 from dataclasses import dataclass
 from typing import Iterable, List, Tuple
 import warnings
-
 import blst
-
+import re, number_parser
 from .base import Payload
-from cicada.util import count_non_ascii
-from cicada import speech
 
 DST = b"BLS_SIG_BLS12381G1_XMD:SHA-256_SSWU_RO_NUL_"	# domain separation tag
 
@@ -73,11 +69,15 @@ class SignaturePayload(Payload):
 		ts = kwargs.get("timestamp", time.time())
 		if not header_message or bls_privkey is None or bls_pubkey_bytes is None:
 			raise ValueError("SignaturePayload.from_transcript requires header_message, bls_privkey, and bls_pubkey_bytes.")
-		l_tokens = speech.regularize_transcript(chunk_text)
+		l_tokens = regularize_transcript(chunk_text)
 		pl = cls.__new__(cls)
 		pl.header = SignaturePayloadHeader(ts, len(l_tokens), header_message)
 		pl.bls_signature = pl.calculate_signature(l_tokens, bls_privkey, bls_pubkey_bytes)
 		return pl
+
+	@classmethod
+	def tokenize_text(cls, chunk_text: str):
+		return regularize_transcript(chunk_text)
 
 	@classmethod
 	def from_bytes(cls, pl_bytes: bytes, n_header_message_chars: int = 11, **kwargs) -> "SignaturePayload":
@@ -87,12 +87,13 @@ class SignaturePayload(Payload):
 		return pl
 
 	@classmethod
-	def decode_frames(cls, l_frames: List[bytes], l_start_idx: List[int], discard_threshold: int = 0, **kwargs):
+	def decode_frames(cls, l_frames: List[bytes], l_start_idx: List[int], ascii_threshold: int = 0, **kwargs):
 		payloads: List[SignaturePayload] = []
 		starts: List[int] = []
 		for frame, start in zip(l_frames, l_start_idx):
 			pl = cls.from_bytes(frame, **kwargs)
-			if count_non_ascii(pl.header.message) <= discard_threshold:
+
+			if sum(1 for ch in pl.header.message if ord(ch) > 127) <= ascii_threshold:
 				payloads.append(pl)
 				starts.append(start)
 		return payloads, starts
@@ -150,10 +151,10 @@ class SignaturePayload(Payload):
 		sig = blst.P1().hash_to(msg, DST, bls_pubkey_bytes).sign_with(bls_privkey).compress()
 		return sig
 
-	def match_chunk(self, chunk_text: str, bls_pubkey_bytes: bytes = None, n_header_message_chars: int = 11, **kwargs) -> int:
+	def match_to_chunk(self, chunk_text: str, bls_pubkey_bytes: bytes = None, n_header_message_chars: int = 11, **kwargs) -> int:
 		if bls_pubkey_bytes is None:
 			raise ValueError("SignaturePayload.match_chunk requires bls_pubkey_bytes.")
-		l_tokens = speech.regularize_transcript(chunk_text)
+		l_tokens = regularize_transcript(chunk_text)
 		word_count = self.header.word_count
 		if len(l_tokens) < word_count:
 			warnings.warn("Not enough tokens in this chunk to match this payload.", UserWarning)
@@ -191,3 +192,67 @@ class SignaturePayload(Payload):
 			f"words={self.header.word_count}, "
 			f"signature={self.bls_signature.hex()}"
 		)
+
+	@classmethod
+	def annotate_chunk(cls, chunk_text: str, l_payloads, l_payload_start_sam, payload_kwargs, wav_fs_Hz=44100):
+		kwargs = {}
+		if payload_kwargs:
+			kwargs.update(payload_kwargs)
+		l_tokens = cls.tokenize_text(chunk_text)
+		l_payload_idx = []
+		l_chunk_text_idx = []
+		for idx, pl in enumerate(l_payloads):
+			match_idx = pl.match_to_chunk(chunk_text, **kwargs)
+			if match_idx >= 0:
+				l_payload_idx.append(idx)
+				l_chunk_text_idx.append(l_tokens[match_idx].idx if match_idx < len(l_tokens) else 0)
+		pairs = sorted(zip(l_chunk_text_idx, l_payload_idx), key=lambda t: t[0])
+		if pairs:
+			l_chunk_text_idx, l_payload_idx = map(list, zip(*pairs))
+		else:
+			l_chunk_text_idx, l_payload_idx = [], []
+
+		l_body_md = []
+		last = 0
+		for idxfn, pos in enumerate(l_chunk_text_idx):
+			slug = l_payload_idx[idxfn]+1
+			l_body_md.append(chunk_text[last:pos])
+			l_body_md.append(f"[{slug}]")
+			last = pos
+		l_body_md.append(chunk_text[last:])
+		body_md = "".join(l_body_md)
+
+		l_footnotes = []
+		for idxfn, idxpl in enumerate(l_payload_idx):
+			fn = l_payloads[idxpl].make_footnote(idxpl+1, l_payload_start_sam[idxpl], wav_fs_Hz)
+			l_footnotes.append(fn)
+		notes_md = "\n".join(l_footnotes)
+		return f"{body_md}\n\n{notes_md}\n\n" if notes_md else f"{body_md}\n\n" if body_md else "\n"
+
+	def make_footnote(self, slug: int, start_sam: int | None, wav_fs_Hz: float = 44100.0) -> str:
+		start_desc = f"sample {start_sam}" if start_sam is not None else "unknown sample"
+		start_sec = (start_sam / wav_fs_Hz) if (start_sam is not None and wav_fs_Hz) else None
+		ts_str = time.ctime(self.header.timestamp)
+		return (
+			f"[{slug}]: Payload at timestamp {ts_str} matches "
+			f"{self.header.word_count} words near {start_desc}"
+			f"{f' ({start_sec:.2f} sec)' if start_sec is not None else ''}. "
+			f"Header message: {self.header.message}"
+		)
+
+@dataclass
+class TranscriptToken:
+	text: str
+	idx: int
+
+def regularize_transcript(s): 
+	"""Convert a string of English into a list of regularized TranscriptTokens"""
+	for dash in ("-", "–", "—"): s = s.replace(dash, " ") # replace dashes with space
+	l_tokens = [(m.group(), m.start()) for m in re.finditer(r'\S+', s)] # Split on whitespace to (token, start_index) pairs
+	l_tokens_clean = list()
+	for itok in range(len(l_tokens)): # Clean each token in the list
+		tok = l_tokens[itok][0].lower() # Lowercase
+		tok = number_parser.parser.parse(tok) # Word to numeric
+		tok = re.sub(r"[^a-z0-9]", "", tok) # Strip non-alphanumeric
+		if len(tok) > 0: l_tokens_clean.append(TranscriptToken(text=tok, idx=l_tokens[itok][1]))
+	return l_tokens_clean

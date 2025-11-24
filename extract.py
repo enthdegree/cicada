@@ -9,38 +9,6 @@ import numpy as np
 import soundfile as sf
 
 from cicada import payload, interface
-from cicada.interface import WrappedHelpFormatter
-
-def build_parser() -> argparse.ArgumentParser:
-	parser = argparse.ArgumentParser(
-		description="Demodulate frames from a WAV file and write them to CSV.",
-		formatter_class=lambda prog: WrappedHelpFormatter(prog, width=80),
-	)
-	interface.add_output_dir_arg(parser)
-	interface.add_debug_flag(parser)
-	interface.add_payload_type_arg(parser)
-	interface.add_waveform_args(parser)
-	interface.add_demod_args(parser)
-	interface.add_modem_flags(parser)
-	parser.add_argument(
-		"--input-wav",
-		type=Path,
-		default=interface.DEFAULT_OUT_DIR / "recording.wav",
-		help="Input WAV file to analyze.",
-	)
-	parser.add_argument(
-		"--output-csv",
-		type=Path,
-		default=None,
-		help="Filename (relative to out-dir unless absolute) for extracted payload metadata.",
-	)
-	parser.add_argument(
-		"--nonascii-discard-threshold",
-		type=int,
-		default=0,
-		help="Maximum allowed non-ASCII characters allowed in a text field before discarding a payload.",
-	)
-	return parser
 
 def load_audio(path: Path) -> tuple[np.ndarray, int]:
 	samples, fs = sf.read(path, dtype="float32", always_2d=False)
@@ -61,7 +29,7 @@ def extract_payloads(args) -> Path:
 
 	modem, wf, demod = interface.build_modem(args, out_dir)
 
-	payload_cls = payload.get_payload_class(args.payload_type)
+	payload_cls = payload.Payload.get_class(args.payload_type)
 	l_frames, l_frame_start_idx = modem.recover_bytes(in_sam)
 	print(f"[extract] recovered {len(l_frames)} frames")
 
@@ -76,7 +44,7 @@ def extract_payloads(args) -> Path:
 	return output_csv
 
 def main(argv: list[str] | None = None):
-	parser = build_parser()
+	parser = interface.build_extract_parser()
 	args = parser.parse_args(argv)
 	extract_payloads(args)
 

@@ -1,6 +1,6 @@
 """Shared CLI helpers for cicada command-line tools."""
-from __future__ import annotations
 
+import argparse
 from argparse import ArgumentParser, HelpFormatter
 from functools import partial
 from pathlib import Path
@@ -115,6 +115,80 @@ def add_modem_flags(parser: ArgumentParser):
 	)
 	parser.set_defaults(discard_duplicate_frames=True)
 	parser.set_defaults(use_ldpc=True)
+
+# ---- Command-specific parser builders ----
+def build_sign_parser() -> argparse.ArgumentParser:
+	parser = argparse.ArgumentParser(
+		description="Continuously transcribe mic audio and transmit payload frames.",
+		formatter_class=lambda prog: WrappedHelpFormatter(prog, width=80),
+	)
+	add_output_dir_arg(parser)
+	add_debug_flag(parser)
+	add_payload_type_arg(parser)
+	add_waveform_args(parser)
+	add_demod_args(parser)
+	add_modem_flags(parser)
+	parser.add_argument("--model-size", default="medium.en", help="Whisper model size.")
+	parser.add_argument("--window-sec", type=float, default=10.0, help="Transcription window length (s).")
+	parser.add_argument("--overlap-sec", type=float, default=5.0, help="Transcription window overlap (s).")
+	parser.add_argument("--mic-blocksize", type=int, default=1024, help="Audio blocksize for microphone capture.")
+	parser.add_argument("--signer-transcript", type=Path, default=None, help="Optional path to log raw transcript chunks.")
+	parser.add_argument("--header-message", default="q3q.net", help="Header message for SignaturePayloads.")
+	parser.add_argument("--bls-privkey", type=Path, default=Path("bls_privkey.bin"), help="Path to BLS private key.")
+	parser.add_argument("--bls-pubkey", type=Path, default=Path("bls_pubkey.bin"), help="Path to BLS public key.")
+	return parser
+
+def build_extract_parser() -> argparse.ArgumentParser:
+	parser = argparse.ArgumentParser(
+		description="Demodulate frames from a WAV file and write them to CSV.",
+		formatter_class=lambda prog: WrappedHelpFormatter(prog, width=80),
+	)
+	add_output_dir_arg(parser)
+	add_debug_flag(parser)
+	add_payload_type_arg(parser)
+	add_waveform_args(parser)
+	add_demod_args(parser)
+	add_modem_flags(parser)
+	parser.add_argument("input_wav", type=Path, help="Input WAV file to analyze.")
+	parser.add_argument(
+		"--output-csv",
+		type=Path,
+		default=None,
+		help="Filename (relative to out-dir unless absolute) for extracted payload metadata.",
+	)
+	parser.add_argument(
+		"--nonascii-discard-threshold",
+		type=int,
+		default=0,
+		help="Maximum allowed non-ASCII characters allowed in a text field before discarding a payload.",
+	)
+	return parser
+
+def build_verify_parser() -> argparse.ArgumentParser:
+	parser = argparse.ArgumentParser(
+		description="Verify frames against a transcription.",
+		formatter_class=lambda prog: WrappedHelpFormatter(prog, width=80),
+	)
+	add_output_dir_arg(parser)
+	add_debug_flag(parser)
+	add_payload_type_arg(parser)
+	add_waveform_args(parser)
+	add_demod_args(parser)
+	add_modem_flags(parser)
+	parser.add_argument("input", type=Path, help="Input WAV to transcribe or transcript markdown to verify directly.")
+	parser.add_argument(
+		"--frames-csv",
+		type=Path,
+		default=None,
+		help="CSV produced by extract.py (default: out/frames.csv).",
+	)
+	parser.add_argument("--output-md", type=Path, default=None, help="Where to write annotated markdown.")
+	parser.add_argument("--model-size", default="medium.en", help="Whisper model size to use for transcription (signature payloads only).")
+	parser.add_argument("--window-sec", type=float, default=10.0, help="Transcription window length in seconds.")
+	parser.add_argument("--overlap-sec", type=float, default=8.0, help="Transcription window overlap in seconds.")
+	parser.add_argument("--bls-pubkey", type=Path, default=Path("bls_pubkey.bin"), help="BLS public key for SignaturePayload verification.")
+	parser.add_argument("--nonascii-discard-threshold", type=int, default=0, help="Max non-ASCII characters allowed in payload content before discarding.")
+	return parser
 
 def add_payload_type_arg(parser: ArgumentParser, default: str = "signature"):
 	choices = payload_type_choices()

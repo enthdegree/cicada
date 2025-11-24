@@ -1,12 +1,10 @@
 """Plaintext payload implementation."""
-from __future__ import annotations
 
 import csv
-from typing import List, Tuple
+from typing import List
 
 from .base import Payload
 from .signature import _escape_csv_text_field, _unescape_csv_text_field
-from cicada.util import count_non_ascii
 
 class PlaintextPayload(Payload):
 	payload_type = "plaintext"
@@ -64,7 +62,7 @@ class PlaintextPayload(Payload):
 		filtered_starts: List[int] = []
 		for pl, start in zip(payloads, starts):
 			pl_pt: PlaintextPayload = pl  # type: ignore[assignment]
-			if count_non_ascii(pl_pt.content) <= ascii_threshold:
+			if sum(1 for ch in pl_pt.content if ord(ch) > 127) <= ascii_threshold:
 				filtered_payloads.append(pl_pt)
 				filtered_starts.append(start)
 		return filtered_payloads, filtered_starts
@@ -81,7 +79,12 @@ class PlaintextPayload(Payload):
 			f"Content: {self.content}"
 		)
 
-	def match_chunk(self, chunk_text: str, **kwargs) -> int: return -1
+	def make_footnote(self, slug: int, start_sam: int | None, wav_fs_Hz: float = 44100.0) -> str:
+		return f"[^{slug}]: {self.describe(start_sam, wav_fs_Hz)}"
+
+	@classmethod
+	def annotate_chunk(cls, chunk_text: str, l_payloads, l_match_idx, l_payload_start_sam, wav_fs_Hz=44100):
+		return chunk_text + "\n\n" # We don't compare plaintext payloads; just return the raw chunk.
 
 	@classmethod
 	def decode_frames(cls, l_frames: List[bytes], l_start_idx: List[int], discard_threshold: int = 0, **kwargs):

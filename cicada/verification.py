@@ -1,13 +1,9 @@
-"""Utilities for comparing transcription chunks to SignaturePayloads."""
-import time, numpy as np, re
+"""Utilities for comparing transcription wav or text to Payloads."""
+import argparse, shlex, sys, numpy as np, re
 from pathlib import Path
 from cicada import speech
 from cicada.speech import WhisperTranscriptionChunk
-
-def fmt_time(sec: float) -> str: # mm:ss.xx
-	m = int(sec // 60)
-	s = sec - 60 * m
-	return f"{m:02d}:{s:05.2f}"
+from cicada import interface
 
 def wav_to_transcript_chunks(in_wav, model, window_sec = 12.0, overlap_sec = 8.0): 
 	''' Transcribe a .wav (filename) to chunks of text '''
@@ -34,58 +30,6 @@ def wav_to_transcript_chunks(in_wav, model, window_sec = 12.0, overlap_sec = 8.0
 		win_start_idx += n_shift_sam
 	return l_chunks, wav_fs_Hz
 
-def find_sublist(l1, l2): # Find the first index of l2's occurrence in l1
-	len1, len2 = len(l1), len(l2)
-	if len2 == 0: return -1
-	for idx in range(len1 - len2 + 1):
-		if l1[idx:(idx + len2)] == l2: return idx
-	return -1
-
-def make_footnote(pl, slug, start_sam, wav_fs_Hz=44100):
-	start_desc = f"sample {start_sam}" if start_sam is not None else "unknown sample"
-	start_sec = (start_sam / wav_fs_Hz) if (start_sam is not None and wav_fs_Hz) else None
-	ts_str = time.ctime(pl.header.timestamp)
-	return (
-		f"[{slug}]: Payload at timestamp {ts_str} matches "
-		f"{pl.header.word_count} words near {start_desc}"
-		f"{f' ({start_sec:.2f} sec)' if start_sec is not None else ''}. "
-		f"Header message: {pl.header.message}"
-	)
-
-def annotate_chunk(chunk_text, l_tokens, l_payloads, l_match_idx, l_payload_start_sam, wav_fs_Hz=44100):
-	l_payload_idx = [] # Index of each matching payload in l_payloads
-	l_chunk_text_idx = [] # Index of each matching payload in the transcript
-	n_p = len(l_payloads)
-	for idx in range(n_p): 
-		if l_match_idx[idx] >= 0: # -1 if this payload doesn't appear in the chunk, idx if it appears starting at the chunk's i-th token
-			l_payload_idx.append(idx)
-			l_chunk_text_idx.append(l_tokens[l_match_idx[idx]].idx)
-	n_fn = len(l_chunk_text_idx)
-
-	# Sort footnotes so their locations ascend (keep pairs together to avoid aliasing issues)
-	pairs = sorted(zip(l_chunk_text_idx, l_payload_idx), key=lambda t: t[0])
-	l_chunk_text_idx, l_payload_idx = map(list, zip(*pairs)) if pairs else ([], [])
-
-	# Write body with footnote markings
-	l_body_md = []
-	last = 0
-	for idxfn, pos in enumerate(l_chunk_text_idx):
-		slug = l_payload_idx[idxfn]+1 # Footnote slug is 1-indexed
-		l_body_md.append(chunk_text[last:pos])
-		l_body_md.append(f"[{slug}]")
-		last = pos
-	l_body_md.append(chunk_text[last:])
-	body_md = "".join(l_body_md)
-
-	# Write footnotes 
-	l_footnotes = []
-	for idxfn in range(n_fn):
-		idxpl = l_payload_idx[idxfn]
-		fn = make_footnote(l_payloads[idxpl], idxpl+1, l_payload_start_sam[idxpl], wav_fs_Hz)
-		l_footnotes.append(fn)
-	notes_md = "\n".join(l_footnotes)
-	return f"{body_md}\n\n{notes_md}\n\n" if notes_md else f"{body_md}\n\n" if body_md else "\n"
-
 def write_appendix_md(l_payloads, l_payload_start_sam=None, wav_fs_Hz: float = 44100.0) -> str:
 	appendix_md = "# Appendix: All Detected Payloads\n"
 	lines = []
@@ -101,5 +45,57 @@ def load_markdown_transcript(path: Path):
 			continue
 		if re.match(r"^\s*\[.*\]", line):
 			continue
-		lines.append(line)
+	lines.append(line)
 	return "\n".join(lines)
+
+def run_verification(payload_cls, args: argparse.Namespace, frames_csv: Path, output_md: Path):
+	print(f"[verification] loading payloads from {frames_csv}")
+	l_payloads, l_payload_start_sam = payload_cls.load_csv(frames_csv)
+	l_payloads, l_payload_start_sam = payload_cls.filter_payloads(
+		l_payloads,
+		l_payload_start_sam,
+		ascii_threshold=args.nonascii_discard_threshold,
+	)
+	payload_kwargs = vars(args)
+	if payload_cls.requires_bls_keys and "bls_pubkey" in payload_kwargs:
+		payload_kwargs["bls_pubkey_bytes"] = interface.load_bls_pubkey(args.bls_pubkey)
+
+	try:
+		cmd = shlex.join(sys.argv)
+	except AttributeError:
+		cmd = " ".join(shlex.quote(a) for a in sys.argv)
+
+	annotated_md = "This file was generated with the following command:\n\n```\n" + cmd + "\n```\n\n"
+	if args.input_md:
+		transcript_text = load_markdown_transcript(args.input_md)
+		chunk_md = payload_cls.annotate_chunk(transcript_text, l_payloads, l_payload_start_sam, payload_kwargs, wav_fs_Hz=44100.0)
+		chunk_md = "# Transcript (markdown input)\n\n" + chunk_md
+		print(chunk_md, end="")
+		annotated_md += chunk_md
+	else:
+		from faster_whisper import WhisperModel
+
+		print("[verification] loading Whisper model...")
+		model = WhisperModel(args.model_size, compute_type="float32")
+		print(f"[verification] loaded {len(l_payloads)} payloads, transcribing {args.input_wav}")
+		l_chunks, wav_fs_Hz = wav_to_transcript_chunks(
+			args.input_wav,
+			model,
+			window_sec=args.window_sec,
+			overlap_sec=args.overlap_sec,
+		)
+		annotated_md = f"# Transcript of {Path(args.input_wav).name}\n\n"
+		n_chunks = len(l_chunks)
+		for ichunk, chunk in enumerate(l_chunks, start=1):
+			segments = list(chunk.seg_iter)
+			chunk_text = "".join(seg.text for seg in segments).lstrip()
+			chunk_md = payload_cls.annotate_chunk(chunk_text, l_payloads, l_payload_start_sam, payload_kwargs, wav_fs_Hz)
+			start_sec = chunk.idx / wav_fs_Hz
+			end_sec = start_sec + chunk.info.duration
+			chunk_md = f"## Chunk {ichunk} of {n_chunks}; ({start_sec:.2f}-{end_sec:.2f} s)\n" + chunk_md
+			print(chunk_md, end="")
+			annotated_md += chunk_md
+
+	annotated_md += write_appendix_md(l_payloads, l_payload_start_sam, 44100.0)
+	output_md.write_text(annotated_md, encoding="utf-8")
+	print(f"[verification] wrote {output_md}")
