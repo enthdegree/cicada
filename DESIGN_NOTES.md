@@ -72,6 +72,7 @@ $[B=1,f_{\text{sym}}=344.5,s=63,p=16,f_c=18.5\text{ kHz},f_{\text{bw}}=3\text{ k
 ### Channel comments
 
 Channel and implementation difficulties motivate use of hopped FSK. 
+To stay out of the way of human speech, the waveform should occupy as narrow a band as possible near 20 kHz.
 
 Scrolling through some spectral measurements on a public dataset[8] it looks like reverberations above 16 kHz mostly die off by 100 ms if you're lucky.
 Sending out a regular short pilot pulse, the comb of intended peaks for the direct path in the receiver's cross-correlation is drowned by a sea of echos.
@@ -79,7 +80,6 @@ It is typical there are more reflected paths than one really wants to keep track
 Our channels are extremely temporally dispersive to the point where it is difficult to imagine any simple waveform that takes advantage of phase features, pushing us towards FSK.
 Hopping helps the signal avoid reverberation.
 
-To stay out of the way of human speech, the waveform should occupy as narrow a band as possible near 20 kHz.
 
 # Notes and references 
 
@@ -87,7 +87,8 @@ To stay out of the way of human speech, the waveform should occupy as narrow a b
 - [2]: ROC camera: https://roc.camera/
 - [3]: Quiet modem here: https://quiet.github.io/docs/org.quietmodem.Quiet/ ; Quiet reliable profiles here: https://github.com/quiet/quiet-js/blob/master/quiet-profiles.json
 - [4]: Lee et. al. "Chirp signal-based aerial acoustic communication for smart devices" here: https://ieeexplore.ieee.org/abstract/document/7218629
-- [5]: Actually a slightly regularized version of a Whisper transcript, see `speech.py`
-- [6]: Traer and McDermott 2016, "Statistics of natural reverberation enable perceptual separation of sound and space" here: https://mcdermottlab.mit.edu/Reverb/SurveyData.html 
+- [5]: Whisper by OpenAI: https://github.com/openai/whisper . Actually a slightly regularized version of a Whisper transcript, see `speech.py`
+- [6]: For a periodic Hann window, $w_{-10\text{ dB}}= \sim 1.9, \ w_{-20 \text{ dB}}=\sim 2.45$
 - [7]: Borrowing $w_x$ from the previous point, consider designing for a high-SNR high-ISI case where $4$ past pulses present in current samples with at least $3$ dB attenuation. Picking parameters that yield $b_k > w_{-16 \text{ dB}},\ k=1,2,3,4$, then the SNR will drop to no worse than 10 dB due to ISI.
-- [8]: For a periodic Hann window, $w_{-10\text{ dB}}= \sim 1.9, \ w_{-20 \text{ dB}}=\sim 2.45$
+- [8]: Traer and McDermott 2016, "Statistics of natural reverberation enable perceptual separation of sound and space" here: https://mcdermottlab.mit.edu/Reverb/SurveyData.html 
+
