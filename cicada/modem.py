@@ -36,32 +36,37 @@ class Modem:
 		self.demodulator = demodulator
 		self.use_bit_mask = use_bit_mask
 		self.discard_duplicate_frames = discard_duplicate_frames
-		self.data_bits_per_frame = wf.symbols_per_frame * wf.bits_per_symbol
-		self.bytes_per_frame = self.data_bits_per_frame // 8
 		self.bit_mask = None
+
+		# Determine # of data bits per frame
 		if use_ldpc: # Ensure compatibility with default LDPC construction
 			if (wf.symbols_per_frame != n_ldpc_code_sym_per_frame) or (wf.bits_per_symbol != 1):
 				raise ValueError("LDPC enabled but waveform is incompatible with the construction hard-coded into modem.py (expected wf.symbols_per_frame=1024, wf.bits_per_symbol=1).")
+			self.data_bits_per_frame = n_ldpc_data_bits_per_frame
+		else: self.data_bits_per_frame = wf.symbols_per_frame * wf.bits_per_symbol
+		self.bytes_per_frame = self.data_bits_per_frame // 8
+
+		# Initialize bit mask
 		if use_bit_mask:
 			rng = np.random.default_rng(0)
-			mask_len = n_ldpc_data_bits_per_frame if use_ldpc else self.data_bits_per_frame
-			self.bit_mask = rng.integers(0, 2, size=mask_len, dtype=np.uint8)
+			self.bit_mask = rng.integers(0, 2, size=self.data_bits_per_frame, dtype=np.uint8)
+			
 		self.bit_error_correction_encoder = ldpc_enc_bits if use_ldpc else no_fec_encoder
 		self.bit_error_correction_decoder = ldpc_dec_bit_llrs if use_ldpc else no_fec_decoder
 
 	def modulate_bytes(self, v_data_bytes):
 		buf = np.frombuffer(v_data_bytes, dtype=np.uint8)
 		v_data_bits = np.unpackbits(buf)
-		max_bits = self.data_bits_per_frame
-		if v_data_bits.size > max_bits:
+		n_data_bits = self.data_bits_per_frame
+		if v_data_bits.size > n_data_bits:
 			warnings.warn(
-				f"Truncating input ({v_data_bits.size} bits / {v_data_bits.size/8:.1f} bytes) to {max_bits} bits (~{max_bits//8} bytes).",
+				f"Truncating input ({v_data_bits.size} bits / {v_data_bits.size/8:.1f} bytes) to {n_data_bits} bits (~{n_data_bits//8} bytes).",
 				stacklevel=2,
 			)
-			v_data_bits = v_data_bits[:max_bits]
-		if v_data_bits.size < max_bits:
-			v_data_bits = np.pad(v_data_bits, (0, max_bits - v_data_bits.size), constant_values=0)
-		if self.bit_mask is not None:
+			v_data_bits = v_data_bits[:n_data_bits]
+		if v_data_bits.size < n_data_bits:
+			v_data_bits = np.pad(v_data_bits, (0, n_data_bits - v_data_bits.size), constant_values=0)
+		if self.use_bit_mask and (self.bit_mask is not None):
 			v_data_bits = self.mask_bits(v_data_bits)
 		v_enc_bits = self.bit_error_correction_encoder(v_data_bits)
 		return self.bit_modulator(v_enc_bits).astype(np.float32)
@@ -73,7 +78,7 @@ class Modem:
 		for dr in l_dr:
 			v_data_bits = self.bit_error_correction_decoder(dr.bit_llrs)
 			v_data_bits = v_data_bits[:self.data_bits_per_frame]
-			if self.bit_mask is not None:
+			if self.use_bit_mask and (self.bit_mask is not None):
 				v_data_bits = self.unmask_bits(v_data_bits)
 			n_pad = (-len(v_data_bits)) % 8
 			if n_pad > 0:
@@ -85,8 +90,6 @@ class Modem:
 		return l_frame_bytes, l_start_idxs
 
 	def mask_bits(self, v_bits):
-		if self.bit_mask is None:
-			return v_bits
 		n = min(len(v_bits), len(self.bit_mask))
 		v_bits_masked = v_bits.copy()
 		v_bits_masked[:n] = v_bits[:n] ^ self.bit_mask[:n]
