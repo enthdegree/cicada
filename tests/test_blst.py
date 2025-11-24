@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+	sys.path.insert(0, str(ROOT))
+
 import blst
 
 # test BLS signature creation and verification
@@ -30,4 +37,3 @@ ctx.aggregate(pubkey, sig, msg, pubkey_bytes)
 ctx.commit()
 if not ctx.finalverify(): 
     raise AssertionError("disaster")
-

@@ -1,4 +1,3 @@
-
 *.md
 *.txt
 *.png
@@ -11,6 +10,7 @@
 *.bls
 *.bin
 archive/
+out/
 refs/
 blst/
 blst.py
