@@ -1,57 +1,79 @@
-''' Pull frames out of output.wav and dump them to frames.csv. '''
-import sys, csv, re, numpy as np, soundfile as sf
-from functools import partial
-from cicada import payload
-from cicada.modem import Modem
-from cicada.fsk.demodulator import FSKDemodulator, FSKDemodulatorParameters
-from cicada.fsk.waveform import FSKParameters, FSKWaveform, default_mod_table 
+#!/usr/bin/env python3
+"""Extract payload frames from a recording."""
+from __future__ import annotations
 
-# Waveform & demod settings
-n_code_sym_per_frame = 1024 # must match cicada.modem default LDPC code
-discard_thresh = 0 # If we get more than this many non-alphanumeric chars then throw this frame away
-wf_params = FSKParameters(
-	symbol_rate_Hz=(44100.0/128.0),
-	hop_factor=63,
-	mod_table_fn=partial(default_mod_table, pattern=16),
-)
-demod_params = FSKDemodulatorParameters(
-	symbols_per_frame=n_code_sym_per_frame, # number of coded symbols per frame
-	frame_search_win=1.2, # search window length in # of frames
-	frame_search_win_step=0.3, # search window shift length in # of frames
-	pulse_frac=8, # fraction of a pulse to use in pulse search
-	plot=True) 
+import argparse
+from pathlib import Path
+
+import numpy as np
+import soundfile as sf
+
+from cicada import payload, interface
+
+def build_parser() -> argparse.ArgumentParser:
+	parser = argparse.ArgumentParser(
+		description="Demodulate frames from a WAV file and write them to CSV.",
+		formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+	)
+	interface.add_output_dir_arg(parser)
+	interface.add_debug_flag(parser)
+	interface.add_payload_type_arg(parser)
+	interface.add_waveform_args(parser)
+	interface.add_demod_args(parser)
+	interface.add_ldpc_flags(parser)
+	parser.add_argument(
+		"--input-wav",
+		type=Path,
+		default=interface.DEFAULT_OUT_DIR / "recording.wav",
+		help="Input WAV file to analyze.",
+	)
+	parser.add_argument(
+		"--output-csv",
+		type=Path,
+		default=Path("frames.csv"),
+		help="Filename (relative to out-dir unless absolute) for extracted payload metadata.",
+	)
+	parser.add_argument(
+		"--nonascii-discard-threshold",
+		type=int,
+		default=0,
+		help="Maximum allowed non-ASCII characters allowed in a text field before discarding a payload.",
+	)
+	return parser
+
+def load_audio(path: Path) -> tuple[np.ndarray, int]:
+	samples, fs = sf.read(path, dtype="float32", always_2d=False)
+	if samples.ndim > 1:
+		samples = samples.mean(axis=1)
+	return samples.astype(np.float32, copy=False), int(fs)
+
+def extract_payloads(args) -> Path:
+	out_dir = interface.ensure_output_dir(args.out_dir)
+	output_csv = interface.resolve_output_path(out_dir, args.output_csv)
+
+	print(f"[extract] loading waveform from {args.input_wav}")
+	in_sam, fs = load_audio(args.input_wav)
+
+	modem, wf, demod = interface.build_modem(args, out_dir)
+
+	payload_cls = payload.get_payload_class(args.payload_type)
+	l_frames, l_frame_start_idx = modem.recover_bytes(in_sam)
+	print(f"[extract] recovered {len(l_frames)} frames")
+
+	l_payloads, l_payload_start = payload_cls.decode_frames(
+		l_frames,
+		l_frame_start_idx,
+		discard_threshold=args.nonascii_discard_threshold,
+	)
+	payload_cls.write_csv(l_payloads, l_sam_idx=l_payload_start, out_csv=str(output_csv))
+
+	print(f"[extract] wrote {len(l_payloads)} payload entries to {output_csv}")
+	return output_csv
+
+def main(argv: list[str] | None = None):
+	parser = build_parser()
+	args = parser.parse_args(argv)
+	extract_payloads(args)
 
 if __name__ == "__main__":
-	in_wav = sys.argv[1] if len(sys.argv) > 1 else "output.wav"
-	out_csv = sys.argv[2] if len(sys.argv) > 2 else "frames.csv"
-
-	# Construct modem
-	wf = FSKWaveform(wf_params)
-	demod = FSKDemodulator(cfg=demod_params, wf=wf)
-	modem = Modem(wf, demodulator=demod, use_ldpc=True)
-
-	print(f"Searching for frames in {in_wav}...")
-	in_sam, fs = sf.read(in_wav, dtype="float32", always_2d=False)
-	if in_sam.ndim > 1: in_sam = in_sam.mean(axis=1)
-	l_frames, l_frame_start_idx = modem.recover_bytes(in_sam)
-
-	print(f"Recovered {len(l_frames)} frames from {in_wav}, trying to decode them...")
-	l_payloads = []
-	l_payload_start_sam = []
-	for iframe in range(len(l_frames)): 
-		frame = l_frames[iframe]
-		pl = payload.SignaturePayload.from_bytes(frame)
-		msg = pl.header.message
-		n_non_ascii = sum(1 for ch in msg if ord(ch) > 127)
-		if(n_non_ascii <= discard_thresh):
-			l_payloads.append(pl)
-			l_payload_start_sam.append(l_frame_start_idx[iframe])
-			print(f"\nFrame {iframe} contains a good payload:")
-			pl.print()
-		
-	# Write payloads to CSV
-	payload.SignaturePayload.write_csv(
-		l_payloads,
-		l_sam_idx=l_payload_start_sam,
-		out_csv=out_csv)
-	print(f"\nWrote {len(l_payloads)} payloads to {out_csv}.")
+	main()

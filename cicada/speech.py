@@ -90,7 +90,6 @@ def audio_transcript_worker(model, q_audio, q_tokens, window_sec=10.0, overlap_s
 		segments = list(seg_iter)
 
 		str_transcript_raw = " ".join(s.text.strip() for s in segments if s.text)
-		l_tokens = regularize_transcript(str_transcript_raw)
-		if len(l_tokens) > 0:
-			q_tokens.put(l_tokens)
-			if debug: print("[transcript worker] published tokens")
+		if str_transcript_raw:
+			q_tokens.put(str_transcript_raw)
+			if debug: print("[transcript worker] published transcript chunk")

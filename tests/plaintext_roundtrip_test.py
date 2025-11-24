@@ -32,6 +32,8 @@ OUTPUT_WAV = Path("plaintext_payload_roundtrip.wav")
 PLOT_DEMOD = False
 # ----------------------------------------------------------------------------
 
+PLAINTEXT_CLASS = payload.get_payload_class("plaintext")
+
 DEFAULT_WORDS = [
 	"alpha","bravo","charlie","delta","echo","foxtrot","golf","hotel","india","juliet",
 	"kilo","lima","mike","november","oscar","papa","quebec","romeo","sierra","tango",
@@ -82,14 +84,14 @@ def synthesize_frames(modem: Modem, l_payload_bytes: list[bytes], fs_Hz: float) 
 	segments.append(post_pad)
 	return np.concatenate(segments, axis=0)
 
-def verify_round_trip(expected_payloads: list[payload.PlaintextPayload], modem: Modem, samples: np.ndarray):
+def verify_round_trip(expected_payloads: list[payload.Payload], modem: Modem, samples: np.ndarray):
 	recovered_bytes, start_idxs = modem.recover_bytes(samples)
 	if len(recovered_bytes) != len(expected_payloads):
 		raise AssertionError(f"Recovered {len(recovered_bytes)} frames but expected {len(expected_payloads)}.")
 	for idx, (pl_expected, recovered, start_idx) in enumerate(zip(expected_payloads, recovered_bytes, start_idxs)):
 		expected_bytes = pl_expected.to_bytes()
 		recovered = recovered[:len(expected_bytes)]
-		pl_actual = payload.PlaintextPayload.from_bytes(recovered)
+		pl_actual = PLAINTEXT_CLASS.from_bytes(recovered)
 		if pl_actual.content != pl_expected.content:
 			raise AssertionError(f"Payload {idx} mismatch at sample {start_idx}: {pl_actual.content!r} != {pl_expected.content!r}")
 
@@ -115,7 +117,7 @@ def main():
 	texts = sanitize_payload_texts(texts)
 	if not texts:
 		raise ValueError("No valid plaintext payloads after filtering.")
-	l_payloads = [payload.PlaintextPayload.from_string(text, n_content_chars=PLAINTEXT_LEN) for text in texts]
+	l_payloads = [PLAINTEXT_CLASS.from_transcript(text) for text in texts]
 	l_payload_bytes = [pl.to_bytes() for pl in l_payloads]
 
 	raw_signal = synthesize_frames(modem, l_payload_bytes, wf.fs_Hz)

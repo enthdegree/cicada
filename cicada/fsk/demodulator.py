@@ -1,6 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from logging import warning
+from pathlib import Path
 import numpy as np
 from scipy.signal import medfilt
 from numpy.lib.stride_tricks import as_strided
@@ -28,9 +29,10 @@ class FSKDemodulator:
 	"""Pulse bank demodulator for FSKWaveform
 	"""
 
-	def __init__(self, cfg: FSKDemodulatorParameters = FSKDemodulatorParameters(), wf: FSKWaveform = FSKWaveform()):
+	def __init__(self, cfg: FSKDemodulatorParameters = FSKDemodulatorParameters(), wf: FSKWaveform = FSKWaveform(), plot_dir: Path | None = None):
 		self.__dict__.update(cfg.__dict__)
 		self.wf = wf
+		self.plot_dir = Path(plot_dir) if plot_dir else None
 	
 	@staticmethod 
 	def _hankel(x: np.ndarray, win: int, step: int = 1) -> np.ndarray:
@@ -120,6 +122,8 @@ class FSKDemodulator:
 			l_dr.append(dr)
 
 		if self.plot:
+			plot_dir = self.plot_dir or Path(".")
+			plot_dir.mkdir(parents=True, exist_ok=True)
 			lo = np.percentile(Ep, 10)
 			hi = np.percentile(Ep, 90)
 			plt.figure(figsize=(32,4)) # Ep: 2D energy vs time
@@ -136,7 +140,7 @@ class FSKDemodulator:
 			plt.title("Ep (pulse energy map)")
 			plt.xlabel("time col / sample offset (strided)")
 			plt.ylabel("pulse / hop")
-			plt.savefig("pulse_energy.png", dpi=300, bbox_inches="tight")
+			plt.savefig(plot_dir / "pulse_energy.png", dpi=300, bbox_inches="tight")
 
 			plt.figure(figsize=(32,4)) # Ef: 1D frame energy
 			plt.plot(Ef)
@@ -145,7 +149,6 @@ class FSKDemodulator:
 			plt.title("Ef (frame energy)")
 			plt.xlabel("start col")
 			plt.ylabel("score")
-			plt.savefig("frame_energy.png", dpi=300, bbox_inches="tight")
+			plt.savefig(plot_dir / "frame_energy.png", dpi=300, bbox_inches="tight")
 
 		return l_dr, Ef, Ep
-
