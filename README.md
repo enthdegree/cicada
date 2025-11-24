@@ -46,9 +46,9 @@ By default output files are put in `./out/`.
 For any routine that involves extracting frames from recorded audio, try adding the `--demod-plot` flag.
 
 - `cicada.py sign`: Continuously transcribe mic audio and playback signed payloads as sound.
-	- Example (also produces a transcript of the payload transcripts it's signing):
+	- Example (with this optional `--signer-transcript` flag it also produces a transcript):
 	```bash
-	./cicada.py sign --signer-transcript out/signer_transcript.md 
+	./cicada.py sign --signer-transcript 
 	```
 - `cicada.py verify`: Verify payloads against a WAV or a transcript.
 	- From WAV (and auto-extract frames... ):
