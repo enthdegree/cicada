@@ -4,18 +4,19 @@ from __future__ import annotations
 import argparse, shlex, sys, re, extract as extract_cli
 from pathlib import Path
 from cicada import interface, payload, speech, verification
+from cicada.interface import WrappedHelpFormatter
 
 def build_parser() -> argparse.ArgumentParser:
 	parser = argparse.ArgumentParser(
 		description="Verify frames against a transcription.",
-		formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+		formatter_class=lambda prog: WrappedHelpFormatter(prog, width=80),
 	)
 	interface.add_output_dir_arg(parser)
 	interface.add_debug_flag(parser)
 	interface.add_payload_type_arg(parser)
 	interface.add_waveform_args(parser)
 	interface.add_demod_args(parser)
-	interface.add_ldpc_flags(parser)
+	interface.add_modem_flags(parser)
 	parser.add_argument("--input-wav", type=Path, default=interface.DEFAULT_OUT_DIR / "recording.wav", help="Recording to transcribe.")
 	parser.add_argument("--input-md", type=Path, default=None, help="Optional transcript markdown to verify against (skips audio transcription).")
 	parser.add_argument(
@@ -121,12 +122,12 @@ def main(argv: list[str] | None = None):
 			wf_symbol_rate=args.wf_symbol_rate,
 			wf_bw=args.wf_bw,
 			wf_hop_factor=args.wf_hop_factor,
+			wf_symbols_per_frame=args.wf_symbols_per_frame,
 			wf_mod_pattern=args.wf_mod_pattern,
-			demod_symbols_per_frame=args.demod_symbols_per_frame,
 			demod_frame_search_win=args.demod_frame_search_win,
 			demod_frame_search_step=args.demod_frame_search_step,
 			demod_pulse_frac=args.demod_pulse_frac,
-			demod_median_window=args.demod_median_window,
+			demod_highpass=args.demod_highpass,
 			demod_plot=args.demod_plot,
 			use_ldpc=args.use_ldpc,
 		)

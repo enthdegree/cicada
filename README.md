@@ -28,7 +28,7 @@ Implementation details in [`DESIGN_NOTES.md`](./DESIGN_NOTES.md). Issues and app
 	pip install --upgrade pip
 	pip install -r requirements.txt
 
-	# Get BLST bindings for python (crypto library)
+	# Build BLST and Python bindings, move them to the project root 
 	git clone https://github.com/supranational/blst
 	cd blst/bindings/python
 	python3 run.me
@@ -43,14 +43,15 @@ One can use `cicada.py` as an interface to the individual components.
 
 - `cicada.py sign` In a loop, transcribe audio from your mic and transmit acoustic signatures, signed with your BLS private key, through the loudspeaker
 - `cicada.py verify` Given `recording.wav` and a BLS public key, produce `transcript.md` which is a transcript of `recording.wav`, annotated with matching signatures it found therein. 
-- `cicada.py extract` Pull digital data frames out of a recording for later verification/debugging. You may be interested in the `--plot` flag here
+- `cicada.py extract` Pull digital data frames out of a recording for later verification/debugging.
 - `make_bls_keys.py` Generates a BLS keypair
 
 ## Underpinnings
 
 - `cicada/speech.py` Speech transcription routines
-- `cicada/payload.py` Payload construction, signing, and verification helpers
-- `cicada/modem.py` Waveform/demodulator construction and modulation helpers
+- `cicada/modem.py` Convert data bits to/from audio samples
+- `cicada/payload/` Payload definitions
+- `cicada/verification.py` Utilities to compare `SignaturePayloads` to transcript text
 - `cicada/fsk/` Physical-layer acoustic waveform
 	- `cicada/fsk/waveform.py` Python defining the audio waveform and its modulation
 	- `cicada/fsk/demodulate.py` Python demodulator for recordings

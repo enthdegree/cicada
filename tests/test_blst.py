@@ -37,3 +37,5 @@ ctx.aggregate(pubkey, sig, msg, pubkey_bytes)
 ctx.commit()
 if not ctx.finalverify(): 
     raise AssertionError("disaster")
+
+print("BLS roundtrip success    ")

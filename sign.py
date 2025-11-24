@@ -12,18 +12,19 @@ from faster_whisper import WhisperModel
 
 from cicada import payload, speech
 from cicada import interface
+from cicada.interface import WrappedHelpFormatter
 
 def build_parser() -> argparse.ArgumentParser:
 	parser = argparse.ArgumentParser(
 		description="Continuously transcribe mic audio and transmit payload frames.",
-		formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+		formatter_class=lambda prog: WrappedHelpFormatter(prog, width=80),
 	)
 	interface.add_output_dir_arg(parser)
 	interface.add_debug_flag(parser)
 	interface.add_payload_type_arg(parser)
 	interface.add_waveform_args(parser)
 	interface.add_demod_args(parser)
-	interface.add_ldpc_flags(parser)
+	interface.add_modem_flags(parser)
 	parser.add_argument("--model-size", default="medium.en", help="Whisper model size.")
 	parser.add_argument("--window-sec", type=float, default=10.0, help="Transcription window length (s).")
 	parser.add_argument("--overlap-sec", type=float, default=5.0, help="Transcription window overlap (s).")
@@ -94,7 +95,7 @@ def run(args: argparse.Namespace):
 		pl = payload_cls.from_transcript(chunk_text, **payload_kwargs)
 		pl_bytes = pl.to_bytes()
 
-		frame_samples = modem.modulate_bytes(pl_bytes)
+		frame_samples = modem.modulate_frame(pl_bytes)
 		sd.play(frame_samples, wf.fs_Hz)
 		sd.wait()
 

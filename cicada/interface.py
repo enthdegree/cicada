@@ -1,7 +1,7 @@
 """Shared CLI helpers for cicada command-line tools."""
 from __future__ import annotations
 
-from argparse import ArgumentParser
+from argparse import ArgumentParser, HelpFormatter
 from functools import partial
 from pathlib import Path
 import blst
@@ -12,6 +12,10 @@ from cicada.modem import Modem
 from cicada.payload import payload_type_choices
 
 DEFAULT_OUT_DIR = Path("out")
+
+class WrappedHelpFormatter(HelpFormatter):
+	def __init__(self, prog, width=80, max_help_position=26):
+		super().__init__(prog, width=width, max_help_position=max_help_position)
 
 def ensure_output_dir(path: Path | str | None) -> Path:
 	out = Path(path) if path else DEFAULT_OUT_DIR
@@ -47,6 +51,7 @@ def add_waveform_args(parser: ArgumentParser):
 	parser.add_argument("--wf-symbol-rate", type=float, default=(44100.0 / 128.0), help="Symbol rate (Hz).")
 	parser.add_argument("--wf-bw", type=float, default=3000.0, help="Waveform bandwidth (Hz).")
 	parser.add_argument("--wf-hop-factor", type=int, default=63, help="Frequency hop factor.")
+	parser.add_argument("--wf-symbols-per-frame", type=int, default=1024, help="Symbols per frame (used by modem/demod).")
 	parser.add_argument("--wf-mod-pattern", type=int, default=16, help="Pattern multiplier for modulation table.")
 
 def build_waveform_parameters(args) -> FSKParameters:
@@ -57,52 +62,59 @@ def build_waveform_parameters(args) -> FSKParameters:
 		symbol_rate_Hz=args.wf_symbol_rate,
 		bw_Hz=args.wf_bw,
 		hop_factor=args.wf_hop_factor,
+		symbols_per_frame=args.wf_symbols_per_frame,
 		mod_table_fn=partial(default_mod_table, pattern=args.wf_mod_pattern),
 	)
 
 def add_demod_args(parser: ArgumentParser):
-	parser.add_argument("--demod-symbols-per-frame", type=int, default=1024, help="Number of coded symbols per frame.")
 	parser.add_argument("--demod-frame-search-win", type=float, default=1.2, help="Frame search window length (frames).")
-	parser.add_argument("--demod-frame-search-step", type=float, default=0.3, help="Frame search window step (frames).")
-	parser.add_argument("--demod-pulse-frac", type=int, default=8, help="Pulse fraction for search.")
-	parser.add_argument("--demod-median-window", type=int, default=8, help="Median filter window length (pulses).")
+	parser.add_argument("--demod-frame-search-step", type=float, default=0.4, help="Frame search window step (frames).")
+	parser.add_argument("--demod-pulse-frac", type=int, default=8, help="Fraction of a pulse length to use in frame search; higher = finer search.")
+	parser.add_argument("--demod-highpass", type=int, default=8, help="High-pass filter length for frame demod (pulses).")
 	parser.add_argument(
 		"--demod-plot",
 		dest="demod_plot",
 		action="store_true",
-		help="Enable demodulator diagnostic plots (saved to out-dir).",
+		help="Enable demodulator plots (saved to out-dir).",
 	)
 	parser.add_argument(
 		"--demod-no-plot",
 		dest="demod_plot",
 		action="store_false",
-		help="Disable demodulator diagnostic plots.",
+		help="Disable demodulator plots.",
 	)
 	parser.set_defaults(demod_plot=True)
 
-def build_demodulator_parameters(args) -> FSKDemodulatorParameters:
+def build_demodulator_parameters(args, wf: FSKWaveform) -> FSKDemodulatorParameters:
 	return FSKDemodulatorParameters(
-		symbols_per_frame=args.demod_symbols_per_frame,
+		symbols_per_frame=wf.symbols_per_frame,
 		frame_search_win=args.demod_frame_search_win,
 		frame_search_win_step=args.demod_frame_search_step,
 		pulse_frac=args.demod_pulse_frac,
-		median_window_len_pulses=args.demod_median_window,
+		high_pass_len_pulses=args.demod_highpass,
 		plot=args.demod_plot,
 	)
 
-def add_ldpc_flags(parser: ArgumentParser):
+def add_modem_flags(parser: ArgumentParser):
 	parser.add_argument(
 		"--no-ldpc",
 		dest="use_ldpc",
 		action="store_false",
-		help="Disable LDPC coding/decoding in the modem.",
+		help="Disable LDPC coding.",
 	)
 	parser.add_argument(
 		"--ldpc",
 		dest="use_ldpc",
 		action="store_true",
-		help="Enable LDPC coding/decoding in the modem.",
+		help="Enable LDPC coding.",
 	)
+	parser.add_argument(
+		"--keep-duplicates",
+		dest="discard_duplicate_frames",
+		action="store_false",
+		help="Do not discard duplicate frames detected by the demodulator.",
+	)
+	parser.set_defaults(discard_duplicate_frames=True)
 	parser.set_defaults(use_ldpc=True)
 
 def add_payload_type_arg(parser: ArgumentParser, default: str = "signature"):
@@ -117,9 +129,9 @@ def add_payload_type_arg(parser: ArgumentParser, default: str = "signature"):
 
 def build_modem(args, plot_dir: Path):
 	wf = FSKWaveform(build_waveform_parameters(args))
-	demod_params = build_demodulator_parameters(args)
+	demod_params = build_demodulator_parameters(args, wf)
 	demod = FSKDemodulator(cfg=demod_params, wf=wf, plot_dir=plot_dir)
-	modem = Modem(wf, demodulator=demod, use_ldpc=args.use_ldpc)
+	modem = Modem(wf, demodulator=demod, discard_duplicate_frames=args.discard_duplicate_frames, use_ldpc=args.use_ldpc, use_bit_mask=False)
 	return modem, wf, demod
 
 def load_bls_keypair(priv_path: Path, pub_path: Path):
