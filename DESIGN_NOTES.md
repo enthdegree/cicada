@@ -1,3 +1,19 @@
+# Prior work 
+
+## Physical-layer watermarking
+This is not a unique idea. 
+It is a bit of a fad right now, I think.
+As a starting reference, a team at Cornell is working on a similar appliance for images[5].
+ROC camera[6] is some zero-knowledge-proof image sensor.
+
+## Acoustic communication
+It would have been nice to use Quiet[7] instead of rolling our own physical & transport layer (in `fsk/` and `modem.py`). 
+Quiet includes profiles very similar to our target: `ultrasonic-fsk-robust` is 8-FSK around 19 kHz with rate-1/2 FEC.
+It's unclear what bit rate is achieved and would take effort to pull our design in (frequency hopping, FEC, frame format). 
+
+Aerial acoustic communication surveys[8] suggest state-of-the-art inaudible long-distance waveforms achieve ~20 bits/sec using very prominent features (frequency-shift keying, chirp spread spectrum) and sophisticated waveform designs.
+We aim for 10x this rate but may have better channel conditions: communication beyond ~10 m is an unlikely use case. 
+
 # Application details 
 
 ## `cicada.py sign`: Signer (transmit-side) 
@@ -63,23 +79,7 @@ It is typical there are more reflected paths than one really wants to keep track
 Our channels are extremely temporally dispersive to the point where it is difficult to imagine any simple waveform that takes advantage of phase features, pushing us towards FSK.
 Hopping helps the signal avoid reverberation.
 
-To stay out of the way of human speech, the waveform should occupy as narrow a band as possible near 20 kHz. Unfortunately, attenuation and mic sensitivity gets worse up there.
-
-# Prior work 
-
-## Physical-layer watermarking
-This is not a unique idea. 
-It is a bit of a fad right now, I think.
-As a starting reference, a team at Cornell is working on a similar appliance for images[5].
-ROC camera[6] is some zero-knowledge-proof image sensor.
-
-## Acoustic communication
-It would have been nice to use Quiet[7] instead of rolling our own FSK mod + LDPC coding. 
-Quiet includes profiles ) very similar to our target: `ultrasonic-fsk-robust` is 8-FSK around 19 kHz with rate-1/2 FEC. 
-It's unclear what bit rate is achieved and would take effort to pull our design in (frequency hopping, FEC, frame format). 
-
-Aerial acoustic communication surveys[8] suggest state-of-the-art inaudible long-distance waveforms achieve ~20 bits/sec using very prominent features (frequency-shift keying, chirp spread spectrum) and sophisticated waveform designs.
-We aim for 10x this rate but may have better channel conditions: communication beyond ~10 m is an unlikely use case. 
+To stay out of the way of human speech, the waveform should occupy as narrow a band as possible near 20 kHz.
 
 # Notes and references 
 
