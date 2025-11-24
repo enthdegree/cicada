@@ -33,6 +33,7 @@ git clone https://github.com/supranational/blst
 cd blst/bindings/python
 python3 run.me
 mv blst.py _blst.*.so ../../..
+cd ../../..
 
 # Generate a BLS key pair
 python3 ./make_bls_keys.py
