@@ -41,7 +41,7 @@ python3 ./make_bls_keys.py
 
 ## Usage 
 `cicada.py` is the top-level interface to cicada's individual tools. 
-By default cicada looks for your public and private keys at `./bls_privkey.bin` `./bls_pubkey.bin` (point it to the right location in `--bls-pubkey` `--bls-privkey`).
+By default cicada looks for your public and private keys at `./bls_privkey.bin` `./bls_pubkey.bin` (point it to the right location with `--bls-pubkey` `--bls-privkey`).
 By default output files are put in `./out/`.
 For any routine that involves extracting frames from recorded audio, try adding the `--demod-plot` flag.
 
