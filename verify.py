@@ -4,150 +4,50 @@
 3. Match the data frames (assumed to contain Payloads) to the Step 1 transcription 
 4. Annotate the Step 1 transcription with matches
 """
-import sys, csv, re, base64
-import soundfile as sf
-import numpy as np
+from functools import partial
+import sys
 from math import gcd
-from imprint import speech
-from imprint import payload
-from imprint.speech import TranscriptChunk
-from scipy.signal import resample_poly
-from dataclasses import dataclass
+from cicada import speech, payload, verification
+from cicada.fsk.demodulator import FSKDemodulator, FSKDemodulatorParameters
+from cicada.fsk.waveform import FSKParameters, FSKWaveform, default_mod_table
 from faster_whisper import WhisperModel
 
-# Model used for transcribing input .wav to english
+debug = True 
+
+# BLS key settings
+bls_pubkey_file = "./bls_pubkey.bin"
+
+# Whisper speech model settings
 window_sec = 10.0
 overlap_sec = 8.0
 transcription_model_name = "medium.en" 
-transcription_model_fs_Hz = 16e3
-transcription_model = WhisperModel(transcription_model_name, compute_type="float32")
 
-# BLS key properties
-bls_pubkey_file = "./bls_pubkey.bin"
-with open(bls_pubkey_file, "rb") as f: bls_pubkey_bytes = f.read()
-
-def load_csv(path): # Load a csv list of transcripts
-	l_base64 = list()
-	l_payload_start_sam = list()
-	with open(in_csv, newline='') as f:
-		reader = csv.DictReader(f)
-		for row in reader:
-			l_base64.append(row['frame_base64'])
-			l_payload_start_sam.append(int(row['frame_start_sam']))
-	l_payloads = list()
-	for pl_b64 in l_base64:
-		pl_ch = base64.b64decode(pl_b64)
-		pl = payload.ch_to_payload(pl_ch)
-		n_bad = sum(ord(ch) > 127 for ch in pl.header_message)
-		if not n_bad: 
-			print(f"Payload found with timestamp {int(pl.timestamp)}; header message: {pl.header_message}")
-			l_payloads.append(pl)
-	return l_payloads, l_payload_start_sam
+###############################################
 	
-def load_wav(path):
-	samples, wav_fs_Hz = sf.read(path)
-	if samples.ndim > 1: # to mono
-		samples = samples.mean(axis=1)
-	if not (wav_fs_Hz == transcription_model_fs_Hz): # resample
-		g = gcd(int(wav_fs_Hz), int(transcription_model_fs_Hz))
-		up = transcription_model_fs_Hz / g
-		down = wav_fs_Hz / g
-		samples = resample_poly(samples, up, down)
-	return samples, wav_fs_Hz
-
-def fmt_time(sec: float) -> str: # mm:ss.xx
-	m = int(sec // 60)
-	s = sec - 60 * m
-	return f"{m:02d}:{s:05.2f}"
-
-def wav_to_chunks(in_wav): # Transcribe a .wav (filename) to chunks of text
-	samples, wav_fs_Hz = load_wav(in_wav)
-	n_window_sam = int(window_sec * wav_fs_Hz)
-	n_overlap_sam = int(overlap_sec * wav_fs_Hz)
-	n_shift_sam = n_window_sam - n_overlap_sam
-	n_total_sam = len(samples)
-	win_start_idx = 0
-	l_chunks = list()
-	while win_start_idx < n_total_sam:
-		win_end_idx = win_start_idx + n_window_sam
-		window_samples = samples[win_start_idx:win_end_idx]
-		if len(window_samples) < n_window_sam:
-			pad = np.zeros(n_window_sam - len(window_samples), dtype=window_samples.dtype)
-			window_samples = np.concatenate([window_samples, pad], axis=0)
-		seg_iter, info = transcription_model.transcribe(
-			window_samples,
-			language="en",
-			beam_size=1,
-			vad_filter=False,
-		)
-		l_chunks.append(TranscriptChunk(seg_iter=seg_iter, info=info, idx=win_start_idx))
-		win_start_idx += n_shift_sam
-	return l_chunks, wav_fs_Hz
-
-def find_sublist(l1, l2): # Find the first index of l2's occurrence in l1
-	len1, len2 = len(l1), len(l2)
-	if len2 == 0: return -1
-	for idx in range(len1 - len2 + 1):
-		if l1[idx:(idx + len2)] == l2: return idx
-	return -1
-
-def annotate_chunk(chunk_text, l_tokens, l_payloads, l_match_idx, l_payload_start_sam, wav_fs_Hz=44100):
-	l_payload_idx = [] # Index of each matching payload in l_payloads
-	l_chunk_text_idx = [] # Index of each matching payload in the transcript
-	n_p = len(l_payloads)
-	for idx in range(n_p): 
-		if l_match_idx[idx] >= 0: # -1 if this payload doesn't appear in the chunk, idx if it appears starting at the chunk's i-th token
-			l_payload_idx.append(idx)
-			l_chunk_text_idx.append(l_tokens[l_match_idx[idx]].idx)
-	n_fn = len(l_chunk_text_idx)
-
-	# Sort footnotes so their locations ascend
-	order = sorted(range(n_fn), key=lambda idx: l_chunk_text_idx[idx]) 
-	l_chunk_text_idx = [l_chunk_text_idx[i] for i in order]
-	l_payload_idx = [l_payload_idx[i] for i in order]
-
-	# Write body with footnote markings
-	l_body_md = []
-	last = 0
-	for idxfn, pos in enumerate(l_chunk_text_idx, start=1):
-		l_body_md.append(chunk_text[last:pos])
-		l_body_md.append(f"[{idxfn}]")
-		last = pos
-	l_body_md.append(chunk_text[last:])
-	body_md = "".join(l_body_md)
-
-	# Write footnotes 
-	l_fn = []
-	for idxfn in range(n_fn):
-		idxpl = l_payload_idx[idxfn]
-		pl = l_payloads[idxpl]
-		start_sam = l_payload_start_sam[idxpl]
-		start_sec = start_sam/wav_fs_Hz
-		l_fn.append((
-			idxpl+1,
-			f"Payload at timestamp {int(pl.timestamp)} " + 
-			f"matches the following {pl.word_count} words, " +
-			f"which stated at sample {start_sam} ({start_sec:.2f} sec). " +
-			f"Header message: {pl.header_message}"))
-	notes_md = "\n".join(f"[{l_fn[idxfn][0]}]: {l_fn[idxfn][1]}" for idxfn in range(n_fn))
-	return f"{body_md}\n\n{notes_md}" if notes_md else body_md
-
 if __name__ == "__main__":
 	in_wav = sys.argv[1]
 	in_csv = sys.argv[2]
 	out_md = sys.argv[3]
+
+	print("Loading speech model...")
+	model = WhisperModel(transcription_model_name, compute_type="float32")
+
+	print("Loading BLS public key...")
+	with open(bls_pubkey_file, "rb") as f: bls_pubkey_bytes = f.read()
 	
 	print(f"Loading frames from {in_csv}...")
-	l_payloads, l_payload_start_sam = load_csv(in_csv)
+	# Load payloads (l_payloads is a list of SignaturePayload)
+	_res = payload.SignaturePayload.load_csv(in_csv)
+	l_payloads: list[payload.SignaturePayload] = _res[0]
+	l_payload_start_sam = _res[1]
 
 	print(f"Getting transcription chunks from {in_wav}...")
-	l_chunks, wav_fs_Hz = wav_to_chunks(in_wav)
+	l_chunks, wav_fs_Hz = verification.wav_to_transcript_chunks(in_wav, model, window_sec, overlap_sec)
 	n_chunks = len(l_chunks)
 	start_sec = 0.0
 	annotated_md = ""
 	for ichunk in range(n_chunks):
 		chunk = l_chunks[ichunk]
-
 		end_sec = start_sec + chunk.info.duration
 
 		# Collect this chunk's text and convert it to a list of tokens
@@ -159,11 +59,11 @@ if __name__ == "__main__":
 		l_tswords = [tok.text for tok in l_tokens]
 		l_match_idx = [] # i-th entry is the index of the i-th payload's first appearance in the chunk
 		for pl in l_payloads: 
-			ii = payload.find_payload_in_token_list(pl, l_tokens, bls_pubkey_bytes)
+			ii = pl.find_in_token_list(l_tokens, bls_pubkey_bytes)
 			l_match_idx.append(ii)
 
 		# Create markdown for this chunk
-		chunk_md = annotate_chunk(chunk_text, l_tokens, l_payloads, l_match_idx, l_payload_start_sam, wav_fs_Hz)
+		chunk_md = verification.annotate_chunk(chunk_text, l_tokens, l_payloads, l_match_idx, l_payload_start_sam, wav_fs_Hz)
 		chunk_md = f"# Chunk {ichunk+1} of {n_chunks}; ({start_sec:.2f}-{end_sec:.2f} s)\n\n" + chunk_md + "\n"
 		print(chunk_md)
 		annotated_md += chunk_md 

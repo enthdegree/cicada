@@ -35,4 +35,3 @@ while True:
 	frame_samples = payload.make_frame_samples(frame_bits) 
 	sd.play(frame_samples, int(payload.wf.fs_Hz)); 
 	sd.wait()
-

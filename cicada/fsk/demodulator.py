@@ -1,5 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
+from logging import warning
 import numpy as np
 from scipy.signal import medfilt
 from numpy.lib.stride_tricks import as_strided
@@ -17,9 +18,11 @@ class FSKDemodulatorParameters:
 
 @dataclass 
 class FSKDemodulatorResult: # This is a data class that will be produced by frame_search.py
-	pulse_map_idx: int # Column in the pulse energy map where this frame started 
 	syms: int # Symbol hard-decisions
-	log_likelihood: np.ndarray # Symbol LLRs
+	sym_log_likelihoods: np.ndarray # Symbol log-likelihood table; shape (mod_order, symbols_per_frame)
+	pulse_map_idx: int = None # Column in the pulse energy map where this frame started 
+	start_idx: int = None # Sample index where this frame started
+	bit_llrs: np.ndarray = None # Bit log-likelihood ratios; shape (symbols_per_frame * wf.n_bits_per_symbol,)
 
 class FSKDemodulator:
 	"""Pulse bank demodulator for FSKWaveform
@@ -68,15 +71,18 @@ class FSKDemodulator:
 
 	def demodulate_frame(self, Es: np.ndarray, start=0, scale=1) -> FSKDemodulatorResult:
 		"""Demodulates a frame given a symbol energy map.
-		You have to correct the symbol start index yourself outside this.
 		"""
+		start_idx = start * self.pulse_frac
 		syms = np.argmax(Es, axis=0)
-		Z = Es / scale
-		Zmax = np.max(Z, axis=0, keepdims=True)
-		P = np.exp(Z - Zmax)
-		P /= np.sum(P, axis=0, keepdims=True)
-		LL = np.log(P)
-		return FSKDemodulatorResult(pulse_map_idx=start, syms=syms, log_likelihood=P)
+		mZ = Es / scale
+		Zmax = np.max(mZ, axis=0, keepdims=True)
+		mP = np.exp(mZ - Zmax) 
+		mP /= np.sum(mP, axis=0, keepdims=True) # Normalized symbol probabilities 
+		ll = np.log(mP) # Symbol log-likelihoods
+		bit_llrs = None
+		if(self.wf.bits_per_symbol == 1): bit_llrs = ll[0,:].ravel()-ll[1,:].ravel() 
+		else: warning("Only 1-bit-per-symbol demod is supported right now. Skipping bit LLR computation.")
+		return FSKDemodulatorResult(pulse_map_idx=start, start_idx=start_idx, syms=syms, sym_log_likelihoods=ll, bit_llrs=bit_llrs)
 
 	def frame_energy_map(self, Ep: np.ndarray) -> np.ndarray:
 		"""Given a map of pulse energies, find the vector Ef where Ef[i] is 

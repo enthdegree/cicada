@@ -8,8 +8,8 @@ import sys, csv, re, base64
 import soundfile as sf
 import numpy as np
 from math import gcd
-from imprint import speech
-from imprint.speech import TranscriptChunk
+from cicada import speech
+from cicada.speech import WhisperTranscriptionChunk
 from scipy.signal import resample_poly
 from dataclasses import dataclass
 from faster_whisper import WhisperModel
@@ -72,7 +72,7 @@ def wav_to_chunks(in_wav): # Transcribe a .wav (filename) to chunks of text
 			beam_size=1,
 			vad_filter=False,
 		)
-		l_chunks.append(TranscriptChunk(seg_iter=seg_iter, info=info, idx=win_start_idx))
+		l_chunks.append(WhisperTranscriptionChunk(seg_iter=seg_iter, info=info, idx=win_start_idx))
 		win_start_idx += n_shift_sam
 	return l_chunks, wav_fs_Hz
 
