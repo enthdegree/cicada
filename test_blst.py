@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 import blst
+
+# test BLS signature creation and verification
+# silent unless something goes wrong
+
 #######################################################################
 
 msg = b"this is my message asdfasdfasdf"		# this what we're signing
@@ -12,11 +16,10 @@ privkey_rt = blst.SecretKey().from_bendian(privkey_bytes)
 pubkey_bytes = blst.P2(privkey).serialize()
 sig_bytes = blst.P1().hash_to(msg, DST, pubkey_bytes) \
                         .sign_with(privkey).compress()
-print(len(sig_bytes))
 
 ########################################################################
 # at this point 'privkey_bytes', 'sig_for_wire' and 'msg' are
-# "sent over network," so now on "receiver" side
+# "sent over network," so below this line is on "receiver" side
 
 sig = blst.P1_Affine(sig_bytes)
 pubkey  = blst.P2_Affine(pubkey_bytes)

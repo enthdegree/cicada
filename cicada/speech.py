@@ -43,7 +43,7 @@ def regularize_transcript(s): # Convert a string of english into a list of regul
 
 def mic_worker(q_audio, mic_blocksize_sam=1024): # Microphone sample producer
 	def _callback(indata, frames, time_info, status):
-		if status: print("[mic]", status)
+		if status: print("[mic worker]", status)
 		mono = indata.mean(axis=1).copy()
 		q_audio.put(mono)
 
@@ -58,43 +58,29 @@ def audio_transcript_worker(model, q_audio, q_tokens, window_sec=10.0, overlap_s
 	window_samples = int(window_sec * whisper_model_fs_Hz)
 	overlap_samples = int(overlap_sec * whisper_model_fs_Hz)
 	hop_samples = window_samples - overlap_samples
-
 	audio_buffer = np.zeros(0, dtype=np.float32)
-	next_decode_at = 0.0
+	next_decode_at = time.monotonic()
 	while True:
-		try: chunk = q_audio.get(timeout=0.1)
+		try:
+			sam = q_audio.get(timeout=0.1)
+			sam = np.asarray(sam, dtype=np.float32).ravel()
+			audio_buffer = np.concatenate([audio_buffer, sam])
 		except queue.Empty:
-			now = time.time()
-			if debug: print("[loop] no audio yet…")
+			if audio_buffer.size == 0 and debug:
+				print("[transcript worker] waiting for audio...")
+		if audio_buffer.size < window_samples:
 			continue
 
-		chunk = np.asarray(chunk, dtype=np.float32).ravel()
-		audio_buffer = np.concatenate([audio_buffer, chunk])
-
-		# drain extras
-		while not q_audio.empty():
-			extra = np.asarray(q_audio.get(), dtype=np.float32).ravel()
-			audio_buffer = np.concatenate([audio_buffer, extra])
-
-		# bound buffer
 		if audio_buffer.size > window_samples * 4:
 			audio_buffer = audio_buffer[-window_samples * 4 :]
 
-		now = time.time()
-		if debug:
-			secs = audio_buffer.size / whisper_model_fs_Hz
-			print(f"[loop] buffer_len={secs:.2f}s")
-
-		# need full window
-		if audio_buffer.size < window_samples: continue
-
-		# throttle
-		if now < next_decode_at: continue
+		now = time.monotonic()
+		if now < next_decode_at:
+			continue
 		next_decode_at = now + (hop_samples / whisper_model_fs_Hz)
 
-		# decode latest window
 		window_audio = audio_buffer[-window_samples:]
-		if debug: print("[decode] calling model…")
+		if debug: print("[transcript worker] decoding latest window...")
 		seg_iter, info = model.transcribe(
 			window_audio,
 			language="en",
@@ -103,8 +89,8 @@ def audio_transcript_worker(model, q_audio, q_tokens, window_sec=10.0, overlap_s
 		)
 		segments = list(seg_iter)
 
-		# Reformat and publish transcript
 		str_transcript_raw = " ".join(s.text.strip() for s in segments if s.text)
 		l_tokens = regularize_transcript(str_transcript_raw)
-		if len(l_tokens) > 0: q_tokens.put(l_tokens) 
-		if debug: print("[debug] got regularized string")
+		if len(l_tokens) > 0:
+			q_tokens.put(l_tokens)
+			if debug: print("[transcript worker] published tokens")

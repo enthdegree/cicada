@@ -7,6 +7,7 @@ import threading
 import blst
 from faster_whisper import WhisperModel
 from cicada import payload, speech
+from cicada.modem import Modem
 from cicada.fsk.demodulator import FSKDemodulatorParameters, FSKDemodulator
 from cicada.fsk.waveform import FSKParameters, FSKWaveform, default_mod_table
 
@@ -39,13 +40,10 @@ demod_params = FSKDemodulatorParameters(
 
 ############################################################
 
-# Construct Cicada modem
+# Construct modem
 wf = FSKWaveform(wf_params)
 demod = FSKDemodulator(cfg=demod_params, wf=wf)
-modem = payload.Modem(
-	bit_modulator=wf,
-	demodulator=demod,
-	use_ldpc=True)
+modem = Modem(wf, demodulator=demod, use_ldpc=True)
 
 # Load speech model
 model = WhisperModel(model_size, compute_type="float32")
@@ -67,7 +65,7 @@ t_mic = threading.Thread(
 	daemon=True)
 t_transcriber = threading.Thread(
 	target=speech.audio_transcript_worker,
-	args=(speech.model, q_mic, q_tokens),
+	args=(model, q_mic, q_tokens),
 	kwargs={'window_sec': window_sec, 'overlap_sec': overlap_sec, 'debug': debug},
 	daemon=True)
 t_mic.start()
@@ -85,11 +83,11 @@ while True: # Go collecting text, forming it into frames and playing it back
 
 	# Form this frame from the token list and transmit it
 	pl = payload.SignaturePayload.from_token_list(
-		tokens=l_tokens, 
+		l_tokens=l_tokens, 
 		header_message=header_message, 
 		bls_privkey=bls_privkey, 
 		bls_pubkey_bytes=bls_pubkey_bytes)
 	pl_bytes = pl.to_bytes()
 	frame_samples = modem.modulate_bytes(pl_bytes) 
-	sd.play(frame_samples, int(payload.wf.fs_Hz)); 
+	sd.play(frame_samples, wf.fs_Hz); 
 	sd.wait()

@@ -6,6 +6,7 @@ import pyldpc, numpy as np
 from .fsk.waveform import FSKWaveform
 from .fsk.demodulator import FSKDemodulator
 from dataclasses import dataclass
+import warnings
 
 def no_fec_encoder(v_bits): return v_bits
 def no_fec_decoder(bit_llrs): return np.array([0 if llr >= 0 else 1 for llr in bit_llrs], dtype=np.uint8)
@@ -17,7 +18,10 @@ d_v = 2 # variable node degree
 d_c = 4 # check node degree
 np.random.seed(0)
 ldpc_H, ldpc_G = pyldpc.make_ldpc(n_code_sym_per_frame, d_v, d_c, systematic=True, sparse=True)
-def ldpc_enc_bits(b, ldpc_G=ldpc_G): return (ldpc_G @ b) % 2 # b must have length k
+def ldpc_enc_bits(b, ldpc_G=ldpc_G):
+    if b.size > n_data_bits_per_frame: warnings.warn(f"Input has {b.size} bits; cropping to {n_data_bits_per_frame} bits.")
+    b = np.pad(b[:n_data_bits_per_frame], (0, max(0, n_data_bits_per_frame - b.size)), 'constant')
+    return (ldpc_G @ b) % 2 
 def ldpc_dec_bit_llrs(bit_llrs, ldpc_H=ldpc_H): # bit_llrs ~ log(P(b=0)/P(b=1))
 	dec_bits = pyldpc.decode(ldpc_H, bit_llrs, snr=0, maxiter=300)
 	return dec_bits[:n_data_bits_per_frame]

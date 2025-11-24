@@ -72,5 +72,4 @@ if __name__ == "__main__":
 	annotated_md += verification.write_appendix_md(l_payloads, l_payload_start_sam, wav_fs_Hz)
 
 	print(f"Writing {out_md}")
-	with open(out_md, "w", encoding="utf-8") as f:
-	    f.write(annotated_md)
+	with open(out_md, "w", encoding="utf-8") as f: f.write(annotated_md)
