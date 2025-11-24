@@ -1,12 +1,12 @@
 # Application details 
 
-# `cicada.py sign`: Signer (transmit-side) 
+## `cicada.py sign`: Signer (transmit-side) 
 
 Speech recognition (some Whisper model[1]) goes transcribing a rolling window of text every few seconds (configurable, defaults to once per ~5s).
 From each transcription a 512-bit (64 byte) SignaturePayload is formed, described below.
 Each SignaturePayload is transmitted acoustically using the modulation scheme described below.
 
-## SignaturePayload structure
+### SignaturePayload structure
 A SignaturePayload (`cicada/payloads/signature.py`) is comprised of these data fields:
 
 - 128-bit header
@@ -18,13 +18,13 @@ A SignaturePayload (`cicada/payloads/signature.py`) is comprised of these data f
 
 The SignaturePayload is block-coded using a (1026,513) binary LDPC code to form a frame of 1026 coded binary symbols.
 
-# `cicada.py verify`: Verifier (receive-side)
+## `cicada.py verify`: Verifier (receive-side)
 
 Run a python script to annotate and verify some audio recording. 
 From this recording the listener recovers a full speech transcript and a bundle of SignaturePayloads.
 The listener matches the SignaturePayloads to the transcript to find matches.
 
-# `fsk/` Acoustic data modulation
+## `fsk/` Acoustic data modulation
 
 Data is modulated into acoustic waves using a very simple hopped-FSK-like waveform in terms of the following definitions
 
@@ -41,7 +41,7 @@ for $k=0,\dots, 2^B s-1$, then $P_k$ is a windowed tone of duration $1/f_{\text{
 
 For each frame, to transmit a symbol $b\in\{0,\dots,2^B-1}$ at time $t$, transmit pulse $P[b s + (p t\bmod{s})]$.
 
-## Choice of parameters
+### Choice of FSK parameters
 
 The application motivates choice of parameters:
 
@@ -53,7 +53,7 @@ The application motivates choice of parameters:
 
 $[B=1,f_{\text{sym}}=344.5,s=63,p=16,f_c=18.5\text{ kHz},f_{\text{bw}}=3\text{ kHz}]$ yields $n_{\text{spp}}=128$ and $b_k > 1$ for $k=1,2,3$.
 
-# Channel comments
+### Channel comments
 
 Channel and implementation difficulties motivate use of hopped FSK. 
 
@@ -63,7 +63,7 @@ It is typical there are more reflected paths than one really wants to keep track
 Our channels are extremely temporally dispersive to the point where it is difficult to imagine any simple waveform that takes advantage of phase features, pushing us towards FSK.
 Hopping helps the signal avoid reverberation.
 
-To stay out of the way of human speech, the waveform should occupy as narrow a band as possible near 20 kHz.
+To stay out of the way of human speech, the waveform should occupy as narrow a band as possible near 20 kHz. Unfortunately, attenuation and mic sensitivity gets worse up there.
 
 # Prior work 
 
