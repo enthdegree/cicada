@@ -39,12 +39,41 @@ python3 ./make_bls_keys.py
 ```
 
 ## Usage 
-`cicada.py` is an interface to cicada's individual applets. 
+`cicada.py` is the top-level interface to cicada's individual tools. Each subcommand has `--help` for the full set of options and defaults (wrapped at 80 cols).
 
-- `cicada.py sign` In a loop, transcribe audio from your mic and transmit acoustic signatures, signed with your BLS private key, through the loudspeaker
-- `cicada.py verify` Given `recording.wav` and a BLS public key, produce `transcript.md` which is a transcript of `recording.wav`, annotated with matching signatures it found therein. 
-- `cicada.py extract` Pull digital data frames out of a recording for later verification/debugging.
-- `make_bls_keys.py` Generates a BLS keypair
+- `cicada.py sign`: Continuously transcribe mic audio and transmit payloads as sound.
+	- Example (signature payloads with BLS keys and signer transcript logging):
+	```bash
+	./cicada.py sign \
+	  --payload-type signature \
+	  --bls-privkey bls_privkey.bin \
+	  --bls-pubkey bls_pubkey.bin \
+	  --signer-transcript out/signer_transcript.md \
+	  --header-message "q3q.net" \
+	  --model-size medium.en
+	```
+- `cicada.py extract`: Demodulate frames from a WAV file and write a frames CSV.
+	- Example:
+	```bash
+	./cicada.py extract recording.wav \
+	  --payload-type signature \
+	  --output-csv out/recording_frames.csv
+	```
+- `cicada.py verify`: Verify payloads against a WAV or a transcript markdown.
+	- From WAV (auto-extract frames if not supplied):
+	```bash
+	./cicada.py verify recording.wav \
+	  --payload-type signature \
+	  --bls-pubkey bls_pubkey.bin \
+	  --output-md out/recording_transcript.md
+	```
+	- From transcript markdown and an existing frames CSV:
+	```bash
+	./cicada.py verify transcript.md \
+	  --frames-csv out/recording_frames.csv \
+	  --payload-type plaintext
+	```
+- `make_bls_keys.py`: Generates a BLS keypair.
 
 ## Underpinnings
 
