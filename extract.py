@@ -35,7 +35,7 @@ if __name__ == "__main__":
 	if in_sam.ndim > 1: in_sam = in_sam.mean(axis=1)
 	l_frames, l_frame_start_idx = modem.recover_bytes(in_sam)
 
-	print(f"Recovered {len(l_frames)} frames from {in_wav}, trying to decode...")
+	print(f"Recovered {len(l_frames)} frames from {in_wav}, trying to decode them...")
 	l_payloads = []
 	l_payload_start_sam = []
 	for iframe in range(len(l_frames)): 
@@ -54,4 +54,4 @@ if __name__ == "__main__":
 		l_payloads,
 		l_sam_idx=l_payload_start_sam,
 		out_csv=out_csv)
-	print(f"Wrote {len(l_payloads)} payloads to {out_csv}")
+	print(f"\nWrote {len(l_payloads)} payloads to {out_csv}.")

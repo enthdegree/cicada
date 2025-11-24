@@ -1,4 +1,5 @@
 """Utilities for comparing transcription chunks to SignaturePayloads (see verify.py and payload.py)."""
+from datetime import datetime
 import numpy as np
 from cicada import speech
 from cicada.speech import WhisperTranscriptionChunk
@@ -40,6 +41,15 @@ def find_sublist(l1, l2): # Find the first index of l2's occurrence in l1
 		if l1[idx:(idx + len2)] == l2: return idx
 	return -1
 
+def make_footnote(pl, slug_idx, start_sam, wav_fs_Hz=44100):
+	start_sec = start_sam/wav_fs_Hz
+	return \
+		f"[{slug_idx}]: " + \
+		f"Payload at timestamp {datetime.fromtimestamp(pl.header.timestamp).strftime('%Y-%m-%d %H:%M:%S')} " + \
+		f"matches the following {pl.header.word_count} words, " + \
+		f"which stated at sample {start_sam} ({start_sec:.2f} sec). " + \
+		f"Header message: {pl.header.message}"
+
 def annotate_chunk(chunk_text, l_tokens, l_payloads, l_match_idx, l_payload_start_sam, wav_fs_Hz=44100):
 	l_payload_idx = [] # Index of each matching payload in l_payloads
 	l_chunk_text_idx = [] # Index of each matching payload in the transcript
@@ -66,17 +76,19 @@ def annotate_chunk(chunk_text, l_tokens, l_payloads, l_match_idx, l_payload_star
 	body_md = "".join(l_body_md)
 
 	# Write footnotes 
-	l_fn = []
+	l_footnotes = []
 	for idxfn in range(n_fn):
 		idxpl = l_payload_idx[idxfn]
-		pl = l_payloads[idxpl]
-		start_sam = l_payload_start_sam[idxpl]
-		start_sec = start_sam/wav_fs_Hz
-		l_fn.append((
-			idxpl+1,
-			f"Payload at timestamp {int(pl.timestamp)} " + 
-			f"matches the following {pl.word_count} words, " +
-			f"which stated at sample {start_sam} ({start_sec:.2f} sec). " +
-			f"Header message: {pl.header_message}"))
-	notes_md = "\n".join(f"[{l_fn[idxfn][0]}]: {l_fn[idxfn][1]}" for idxfn in range(n_fn))
-	return f"{body_md}\n\n{notes_md}" if notes_md else body_md
+		fn = make_footnote(l_payloads[idxpl], idxpl+1, l_payload_start_sam[idxpl], wav_fs_Hz)
+		l_footnotes.append(fn)
+	notes_md = "\n".join(l_footnotes)
+	return f"{body_md}\n\n{notes_md}\n\n" if notes_md else body_md
+
+def write_appendix_md(l_payloads, l_payload_start_sam=None, wav_fs_Hz: float = 44100.0) -> str:
+	appendix_md = "\n\n# Appendix: All Detected Payloads\n"
+	l_footnotes = []
+	for idxpl in range(len(l_payloads)):
+		fn = make_footnote(l_payloads[idxpl], idxpl+1, l_payload_start_sam[idxpl], wav_fs_Hz)
+		l_footnotes.append(fn)
+	notes_md = "\n".join(l_footnotes)
+	return appendix_md + notes_md + "\n"

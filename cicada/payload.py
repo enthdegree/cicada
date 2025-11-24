@@ -4,6 +4,18 @@ import warnings, time, struct, base64, csv, blst
 from typing import Iterable
 from dataclasses import dataclass
 
+def _escape_csv_text_field(value: str) -> str:
+	"""Encode arbitrary text into a CSV-safe ASCII representation."""
+	escaped = value.encode("unicode_escape").decode("ascii")
+	return (escaped
+		.replace(",", "\\u002c")
+		.replace("\"", "\\u0022")
+		.replace("'", "\\u0027"))
+
+def _unescape_csv_text_field(value: str) -> str:
+	"""Undo _escape_csv_text_field."""
+	return bytes(value, "utf-8").decode("unicode_escape")
+
 DST = b"BLS_SIG_BLS12381G1_XMD:SHA-256_SSWU_RO_NUL_"	# domain separation tag
 
 @dataclass
@@ -69,7 +81,7 @@ class SignaturePayload: # 512-bit payload structure; see DESIGN_NOTES.md
 				sam_idx = l_sam_idx[i]
 				ts_field = f"{int(pl.header.timestamp):010d}"
 				wc_field = str(pl.header.word_count)
-				header_field = pl.header.message.encode("unicode_escape").decode("ascii")
+				header_field = _escape_csv_text_field(pl.header.message)
 				sig_b64 = base64.b64encode(pl.bls_signature).decode("ascii")
 				writer.writerow([sam_idx, ts_field, wc_field, header_field, sig_b64])
 
@@ -87,8 +99,7 @@ class SignaturePayload: # 512-bit payload structure; see DESIGN_NOTES.md
 				sam_idx = int(row['frame_start_sam'])
 				ts = int(row['timestamp'])
 				wc = int(row['word_count'])
-				header_escaped = row['header_message']
-				header_message = bytes(header_escaped, "utf-8").decode("unicode_escape")
+				header_message = _unescape_csv_text_field(row['header_message'])
 				sig_b64 = row['bls_signature']
 				bls_sig = base64.b64decode(sig_b64)
 
@@ -178,12 +189,12 @@ class PlaintextPayload:
 		if l_sam_idx is None: l_sam_idx = [-1] * len(l_payloads)
 		with open(out_csv, "w", newline="") as f:
 			writer = csv.writer(f)
-			writer.writerow(["frame_start_sam", "frame_base64"])
+			writer.writerow(["frame_start_sam", "content"])
 			for i in range(len(l_payloads)):
 				pl = l_payloads[i]
 				sam_idx = l_sam_idx[i]
-				pl_b64 = base64.b64encode(pl.to_bytes()).decode("ascii")
-				writer.writerow([sam_idx, pl_b64])
+				content_field = _escape_csv_text_field(pl.content)
+				writer.writerow([sam_idx, content_field])
 
 	@classmethod 
 	def load_csv(cls, in_csv: str):
@@ -192,10 +203,10 @@ class PlaintextPayload:
 		with open(in_csv, newline='') as f:
 			reader = csv.DictReader(f)
 			for row in reader:
-				pl_b64 = row['frame_base64']
 				sam_idx = int(row['frame_start_sam'])
-				pl_bytes = base64.b64decode(pl_b64)
-				pl = cls.from_bytes(pl_bytes)
+				content = _unescape_csv_text_field(row['content'])
+				pl = cls.__new__(cls)
+				pl.content = content
 				l_payloads.append(pl)
 				l_sam_idx.append(sam_idx)
 		return l_payloads, l_sam_idx
