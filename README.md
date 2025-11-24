@@ -39,7 +39,10 @@ python3 ./make_bls_keys.py
 ```
 
 ## Usage 
-`cicada.py` is the top-level interface to cicada's individual tools.
+`cicada.py` is the top-level interface to cicada's individual tools. 
+By default cicada looks for your public and private keys at `./bls_privkey.bin` `./bls_pubkey.bin` (point it to the right location in `--bls-pubkey` `--bls-privkey`).
+By default output files are put in `./out/`.
+For any routine that involves extracting frames from recorded audio, try adding the `--demod-plot` flag.
 
 - `cicada.py sign`: Continuously transcribe mic audio and playback signed payloads as sound.
 	- Example (also produces a transcript of the payload transcripts it's signing):
@@ -60,10 +63,6 @@ python3 ./make_bls_keys.py
 	```bash
 	./cicada.py extract recording.wav
 	```
-
-By default cicada looks for your public and private keys at `./bls_privkey.bin` `./bls_pubkey.bin` (point it to the right location in `--bls-pubkey` `--bls-privkey`).
-By default output files are put in `./out/`.
-For any routine that involves extracting frames, try adding the `--demod-plot` flag.
 
 ## Underpinnings
 
