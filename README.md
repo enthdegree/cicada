@@ -39,41 +39,31 @@ python3 ./make_bls_keys.py
 ```
 
 ## Usage 
-`cicada.py` is the top-level interface to cicada's individual tools. 
+`cicada.py` is the top-level interface to cicada's individual tools.
 
-- `cicada.py sign`: Continuously transcribe mic audio and transmit payloads as sound.
-	- Example (signature payloads with BLS keys and signer transcript logging):
+- `cicada.py sign`: Continuously transcribe mic audio and playback signed payloads as sound.
+	- Example (also produces a transcript of the payload transcripts it's signing):
 	```bash
-	./cicada.py sign \
-	  --payload-type signature \
-	  --bls-privkey bls_privkey.bin \
-	  --bls-pubkey bls_pubkey.bin \
-	  --signer-transcript out/signer_transcript.md \
-	  --header-message "q3q.net" \
-	  --model-size medium.en
+	./cicada.py sign --signer-transcript out/signer_transcript.md 
 	```
-- `cicada.py extract`: Demodulate frames from a WAV file and write a frames CSV.
+- `cicada.py verify`: Verify payloads against a WAV or a transcript.
+	- From WAV (and auto-extract frames... ):
+	```bash
+	./cicada.py verify recording.wav 
+	```
+	- From transcript text and an existing CSV of payloads:
+	```bash
+	./cicada.py verify transcript.md --frames-csv out/recording_frames.csv
+	```
+- `cicada.py extract`: Extract payloads from a WAV file and dump them to a CSV.
 	- Example:
 	```bash
-	./cicada.py extract recording.wav \
-	  --payload-type signature \
-	  --output-csv out/recording_frames.csv
+	./cicada.py extract recording.wav
 	```
-- `cicada.py verify`: Verify payloads against a WAV or a transcript markdown.
-	- From WAV (auto-extract frames if not supplied):
-	```bash
-	./cicada.py verify recording.wav \
-	  --payload-type signature \
-	  --bls-pubkey bls_pubkey.bin \
-	  --output-md out/recording_transcript.md
-	```
-	- From transcript markdown and an existing frames CSV:
-	```bash
-	./cicada.py verify transcript.md \
-	  --frames-csv out/recording_frames.csv \
-	  --payload-type plaintext
-	```
-- `make_bls_keys.py`: Generates a BLS keypair.
+
+By default cicada looks for your public and private keys at `./bls_privkey.bin` `./bls_pubkey.bin` (point it to the right location in `--bls-pubkey` `--bls-privkey`).
+By default output files are put in `./out/`.
+For any routine that involves extracting frames, try adding the `--demod-plot` flag.
 
 ## Underpinnings
 
