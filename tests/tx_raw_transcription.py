@@ -1,37 +1,47 @@
 #!/usr/bin/env python3
-import numpy as np
-import sounddevice as sd
+"""Minimal mic→transcript→frame TX loop using current cicada APIs."""
 import queue
 import threading
-from imprint import payload, speech
+import sounddevice as sd
+from pathlib import Path
+from cicada import payload, speech, interface
+from cicada.modem import Modem
+from cicada.fsk.waveform import FSKWaveform, FSKParameters, default_mod_table
+from cicada.fsk.demodulator import FSKDemodulator, FSKDemodulatorParameters
+
+# Build a minimal modem (TX only; demod not used here)
+wf = FSKWaveform(FSKParameters(mod_table_fn=lambda m=default_mod_table: m()))
+demod = FSKDemodulator(FSKDemodulatorParameters(), wf=wf)
+modem = Modem(wf, demodulator=demod, use_ldpc=True, use_bit_mask=True)
+
+payload_cls = payload.Payload.get_class("plaintext")
 
 q_mic = queue.Queue()
 q_text = queue.Queue()
-t_mic = threading.Thread(
-	target=speech.mic_producer, 
-	args=(q_mic,), 
-	daemon=True)
+
+t_mic = threading.Thread(target=speech.mic_worker, args=(q_mic,), daemon=True)
 t_transcriber = threading.Thread(
-	target=speech.transcribe_audio_loop, 
-	args=(speech.model, q_mic, q_text, False),
-	daemon=True)
+	target=speech.audio_transcript_worker,
+	args=(speech.WhisperModel("medium.en", compute_type="float32"), q_mic, q_text),
+	kwargs={"window_sec": 5.0, "overlap_sec": 2.5, "debug": True},
+	daemon=True,
+)
 t_mic.start()
 t_transcriber.start()
 
-# Go collecting text, forming it into frames and playing it back
+print("[tx] capturing mic, transcribing, and transmitting plaintext payloads...")
 while True:
-	l_words = None
-	try: # Get the latest window of text
-		while True: l_words = q_text.get_nowait()
-	except queue.Empty: pass
-	if l_words is None: l_words = q_text.get() 
-	transcript_str = ""
-	for word in l_words: transcript_str += " " + word[0]
-	print(transcript_str)
+	chunk_text = None
+	try:
+		while True:
+			chunk_text = q_text.get_nowait()
+	except queue.Empty:
+		pass
+	if chunk_text is None:
+		chunk_text = q_text.get()
+	print(f"[tx] {chunk_text}")
 
-	# Form and transmit this frame
-	transcript_ch = transcript_str.encode("ascii")
-	frame_bits = payload.make_frame_bits(transcript_ch)
-	frame_samples = payload.make_frame_samples(frame_bits) 
-	sd.play(frame_samples, int(payload.wf.fs_Hz)); 
+	pl = payload_cls.from_transcript(chunk_text)
+	samples = modem.modulate_bytes(pl.to_bytes())
+	sd.play(samples, wf.fs_Hz)
 	sd.wait()
