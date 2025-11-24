@@ -39,7 +39,7 @@ python3 ./make_bls_keys.py
 ```
 
 ## Usage 
-`cicada.py` is the top-level interface to cicada's individual tools. Each subcommand has `--help` for the full set of options and defaults (wrapped at 80 cols).
+`cicada.py` is the top-level interface to cicada's individual tools. 
 
 - `cicada.py sign`: Continuously transcribe mic audio and transmit payloads as sound.
 	- Example (signature payloads with BLS keys and signer transcript logging):
