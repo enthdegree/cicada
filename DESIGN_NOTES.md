@@ -7,7 +7,7 @@ From each transcription a 512-bit (64 byte) SignaturePayload is formed, describe
 Each SignaturePayload is transmitted acoustically using the modulation scheme described below.
 
 ## SignaturePayload structure
-A SignaturePayload is comprised of these data fields:
+A SignaturePayload (`cicada/payloads/signature.py`) is comprised of these data fields:
 
 - 128-bit header
 	- `bits  0-31`: 32 bit unix timestamp
@@ -24,7 +24,7 @@ Run a python script to annotate and verify some audio recording.
 From this recording the listener recovers a full speech transcript and a bundle of SignaturePayloads.
 The listener matches the SignaturePayloads to the transcript to find matches.
 
-# Acoustic data modulation
+# `fsk/` Acoustic data modulation
 
 Data is modulated into acoustic waves using a very simple hopped-FSK-like waveform in terms of the following definitions
 
