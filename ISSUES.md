@@ -13,7 +13,5 @@ It is currently, among other things, annoying-sounding, unreliable, vulnerable t
 
 # Logic issues
 
-- Ridiculous vibe coding ruined the app and I have had to revert it to the last known semi-working state. Need to reimplement everything as described in the new readme because clanker chatgpt decided to enshittify it as an act of violence against humanity. 
 - Frame extraction is naive right now: each frame is compared to the entire transcript. Timestamps are recovered from frames but not matched to the transcript.
-- `fsk/demodulator.py` frame sync is unreliable right now. The extremely rudimentary fsk design might be at fault. It will not find frames whose contents are highly regular (full of zeros, for example).
-- The demodulator really, really should be windowed instead of creating an absolutely massive map  
+- The demodulator really, *really* should be windowed instead of creating an absolutely massive map spanning the entire sample vector
