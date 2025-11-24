@@ -132,7 +132,14 @@ def build_sign_parser() -> argparse.ArgumentParser:
 	parser.add_argument("--window-sec", type=float, default=10.0, help="Transcription window length (s).")
 	parser.add_argument("--overlap-sec", type=float, default=5.0, help="Transcription window overlap (s).")
 	parser.add_argument("--mic-blocksize", type=int, default=1024, help="Audio blocksize for microphone capture.")
-	parser.add_argument("--signer-transcript", type=Path, default=None, help="Optional path to log raw transcript chunks.")
+	parser.add_argument(
+		"--signer-transcript",
+		type=Path,
+		nargs="?",
+		const=Path("signer_transcript.md"),
+		default=None,
+		help="Optional path to log raw transcript chunks (default: out/signer_transcript.md).",
+	)
 	parser.add_argument("--header-message", default="q3q.net", help="Header message for SignaturePayloads.")
 	parser.add_argument("--bls-privkey", type=Path, default=Path("bls_privkey.bin"), help="Path to BLS private key.")
 	parser.add_argument("--bls-pubkey", type=Path, default=Path("bls_pubkey.bin"), help="Path to BLS public key.")
@@ -153,8 +160,10 @@ def build_extract_parser() -> argparse.ArgumentParser:
 	parser.add_argument(
 		"--output-csv",
 		type=Path,
+		nargs="?",
+		const=None,
 		default=None,
-		help="Filename (relative to out-dir unless absolute) for extracted payload metadata.",
+		help="Filename (relative to out-dir unless absolute) for extracted payload metadata (default: out/<input>_frames.csv).",
 	)
 	parser.add_argument(
 		"--nonascii-discard-threshold",
@@ -182,7 +191,14 @@ def build_verify_parser() -> argparse.ArgumentParser:
 		default=None,
 		help="CSV produced by extract.py (default: out/frames.csv).",
 	)
-	parser.add_argument("--output-md", type=Path, default=None, help="Where to write annotated markdown.")
+	parser.add_argument(
+		"--output-md",
+		type=Path,
+		nargs="?",
+		const=None,
+		default=None,
+		help="Where to write annotated markdown (default: out/<input>_transcript.md).",
+	)
 	parser.add_argument("--model-size", default="medium.en", help="Whisper model size to use for transcription (signature payloads only).")
 	parser.add_argument("--window-sec", type=float, default=10.0, help="Transcription window length in seconds.")
 	parser.add_argument("--overlap-sec", type=float, default=8.0, help="Transcription window overlap in seconds.")
