@@ -3,26 +3,26 @@
 # `cicada.py sign`: Signer (transmit-side) 
 
 Speech recognition (some Whisper model[1]) goes transcribing a rolling window of text every few seconds (configurable, defaults to once per ~5s).
-From each transcription a 512-bit (64 byte) data payload is formed, described below.
-Each payload is transmitted acoustically using the modulation scheme described below.
+From each transcription a 512-bit (64 byte) SignaturePayload is formed, described below.
+Each SignaturePayload is transmitted acoustically using the modulation scheme described below.
 
-## Payload structure
-A payload is comprised of these data fields:
+## SignaturePayload structure
+A SignaturePayload is comprised of these data fields:
 
 - 128-bit header
 	- `bits  0-31`: 32 bit unix timestamp
-	- `bits 32-39`: 8 bit int of # of words this payload's signature represents
+	- `bits 32-39`: 8 bit int of # of words this SignaturePayload's signature represents
 	- `bits 40-128`: 11 character ascii plaintext header message 
 - 384-bit signature
 	-  `bits 129-512`: 48 byte BLS short signature on a regularized list of transcript words
 
-The payload is block-coded using a (1026,513) binary LDPC code to form a frame of 1026 coded binary symbols.
+The SignaturePayload is block-coded using a (1026,513) binary LDPC code to form a frame of 1026 coded binary symbols.
 
 # `cicada.py verify`: Verifier (receive-side)
 
 Run a python script to annotate and verify some audio recording. 
-From this recording the listener recovers a full speech transcript and a bundle of payloads.
-The listener matches the payloads to the transcript to find matches.
+From this recording the listener recovers a full speech transcript and a bundle of SignaturePayloads.
+The listener matches the SignaturePayloads to the transcript to find matches.
 
 # Acoustic data modulation
 
