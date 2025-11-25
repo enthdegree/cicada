@@ -1,7 +1,5 @@
 numpy
 scipy
-regex
-pyblst
 pyldpc
 soundfile
 sounddevice

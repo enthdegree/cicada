@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
 """Extract payload frames from a recording."""
-from __future__ import annotations
-
-import argparse
 from pathlib import Path
 
 import numpy as np

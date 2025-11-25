@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from logging import warning
 from pathlib import Path
 import numpy as np
-from scipy.signal import medfilt
 from numpy.lib.stride_tricks import as_strided
 from .waveform import FSKWaveform
 import matplotlib.pyplot as plt
@@ -12,7 +11,6 @@ class FSKDemodulatorParameters:
 	frame_search_win: float = 1.2 # search window length in # of frames
 	frame_search_win_step: float = 0.3 # search window shift length in # of frames
 	pulse_frac: int = 8 # fraction of a pulse to use in pulse search
-	high_pass_len_pulses: int = 8 # high-pass median filter length for frame demod (pulses)
 	plot: bool = True
 
 @dataclass 
@@ -49,11 +47,8 @@ class FSKDemodulator:
 		C = self.wf.pulses_cos @ X
 		S = self.wf.pulses_sin @ X
 		M = C * C + S * S
-		M_eq = M / (np.mean(M, axis=1, keepdims=True)  + 1e-12) # Mic might not be equally sensitive to each pulse
-		filtsz = int(self.high_pass_len_pulses*self.pulse_frac/2)*2 + 1
-		M_median_lowpass = medfilt(M_eq, kernel_size=(1,filtsz))
-		M_filt = M_eq - M_median_lowpass # Heuristic to mitigate bias from transients and ISI
-		return M_filt
+		M /= M.mean(axis=1, keepdims=1) + 1e-12
+		return M
 
 	def symbol_energy_map(self, Ep: np.ndarray, start: int) -> np.ndarray:
 		"""Assuming a frame at col `start` of Ep, gather the frame's symbol
@@ -72,6 +67,7 @@ class FSKDemodulator:
 	def demodulate_frame(self, Es: np.ndarray, start=0, scale=1) -> FSKDemodulatorResult:
 		"""Demodulates a frame given a symbol energy map.
 		"""
+		Es /= np.mean(Es, axis=1, keepdims=True) + 1e-12 
 		start_idx = start * (self.wf.samples_per_pulse // self.pulse_frac)
 		syms = np.argmax(Es, axis=0)
 		mZ = Es / scale
@@ -115,7 +111,6 @@ class FSKDemodulator:
 			start = s + np.argmax(Ef[s:seg_end])
 			if start in l_starts: continue
 			l_starts.append(start)
-		seen_bits = set()
 		for start in l_starts:
 			Es = self.symbol_energy_map(Ep, start)
 			dr = self.demodulate_frame(Es, start)

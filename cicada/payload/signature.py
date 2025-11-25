@@ -93,9 +93,15 @@ class SignaturePayload(Payload):
 		for frame, start in zip(l_frames, l_start_idx):
 			pl = cls.from_bytes(frame, **kwargs)
 
-			if sum(1 for ch in pl.header.message if ord(ch) > 127) <= ascii_threshold:
+			n_nonascii = sum(1 for ch in pl.header.message if ord(ch) > 127)
+			if n_nonascii <= ascii_threshold:
 				payloads.append(pl)
 				starts.append(start)
+			else:
+				warnings.warn(
+					f"Discarding payload at sample {start} due to non-ASCII character threshold ({n_nonascii} > {ascii_threshold}).",
+					UserWarning,
+				)
 		return payloads, starts
 
 	@classmethod

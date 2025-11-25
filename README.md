@@ -1,7 +1,7 @@
 # cicada
 
 <p align="center">
-  <img src="header_image.jpg" alt="malaise" width="50%">
+  <img src="cicada/header_image.jpg" alt="malaise" width="50%">
 </p>
 
 Let's acoustically imprint speech in real-time with evidence it is not falsified. Evidence it is not edited or AI generated, for example.

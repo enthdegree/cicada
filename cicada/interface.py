@@ -68,9 +68,9 @@ def build_waveform_parameters(args) -> FSKParameters:
 
 def add_demod_args(parser: ArgumentParser):
 	parser.add_argument("--demod-frame-search-win", type=float, default=1.2, help="Frame search window length (frames).")
-	parser.add_argument("--demod-frame-search-step", type=float, default=0.4, help="Frame search window step (frames).")
+	parser.add_argument("--demod-frame-search-step", type=float, default=0.3, help="Frame search window step (frames).")
 	parser.add_argument("--demod-pulse-frac", type=int, default=8, help="Fraction of a pulse length to use in frame search; higher = finer search.")
-	parser.add_argument("--demod-highpass", type=int, default=8, help="High-pass filter length for frame demod (pulses).")
+	parser.add_argument("--demod-highpass", type=int, default=16, help="High-pass filter length for frame demod (pulses).")
 	parser.add_argument(
 		"--demod-plot",
 		dest="demod_plot",
@@ -90,7 +90,6 @@ def build_demodulator_parameters(args, wf: FSKWaveform) -> FSKDemodulatorParamet
 		frame_search_win=args.demod_frame_search_win,
 		frame_search_win_step=args.demod_frame_search_step,
 		pulse_frac=args.demod_pulse_frac,
-		high_pass_len_pulses=args.demod_highpass,
 		plot=args.demod_plot,
 	)
 
@@ -200,8 +199,8 @@ def build_verify_parser() -> argparse.ArgumentParser:
 		help="Where to write annotated markdown (default: out/<input>_transcript.md).",
 	)
 	parser.add_argument("--model-size", default="medium.en", help="Whisper model size to use for transcription (signature payloads only).")
-	parser.add_argument("--window-sec", type=float, default=10.0, help="Transcription window length in seconds.")
-	parser.add_argument("--overlap-sec", type=float, default=8.0, help="Transcription window overlap in seconds.")
+	parser.add_argument("--window-sec", type=float, default=20.0, help="Transcription window length in seconds.")
+	parser.add_argument("--overlap-sec", type=float, default=16.0, help="Transcription window overlap in seconds.")
 	parser.add_argument("--bls-pubkey", type=Path, default=Path("bls_pubkey.bin"), help="BLS public key for SignaturePayload verification.")
 	parser.add_argument("--nonascii-discard-threshold", type=int, default=0, help="Max non-ASCII characters allowed in payload content before discarding.")
 	return parser

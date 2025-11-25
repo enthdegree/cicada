@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """Verification CLI for SignaturePayloads or PlaintextPayloads."""
-from __future__ import annotations
 import argparse
 from pathlib import Path
 import extract as extract_cli

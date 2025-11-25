@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """Round-trip test for PlaintextPayload modulation/demodulation."""
-from __future__ import annotations
 import sys
 from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
@@ -105,7 +104,6 @@ def main():
 		frame_search_win=1.2,
 		frame_search_win_step=0.3,
 		pulse_frac=8,
-		high_pass_len_pulses=8,
 		plot=PLOT_DEMOD,
 	)
 	out_dir = Path("out")

@@ -3,8 +3,7 @@
 import queue
 import threading
 import sounddevice as sd
-from pathlib import Path
-from cicada import payload, speech, interface
+from cicada import payload, speech
 from cicada.modem import Modem
 from cicada.fsk.waveform import FSKWaveform, FSKParameters, default_mod_table
 from cicada.fsk.demodulator import FSKDemodulator, FSKDemodulatorParameters

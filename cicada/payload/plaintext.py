@@ -18,11 +18,7 @@ class PlaintextPayload(Payload):
 		pl = cls.__new__(cls)
 		pl.content = chunk_text
 		return pl
-
-	@classmethod
-	def from_string(cls, s: str, **kwargs):
-		return cls.from_transcript(s, **kwargs)
-
+	
 	@classmethod
 	def from_bytes(cls, pl_bytes: bytes, **kwargs):
 		pl = cls.__new__(cls)

@@ -13,7 +13,9 @@ It is currently, among other things, annoying-sounding, unreliable, vulnerable t
 
 # Logic issues
 
-- SignaturePayload matching (`payload/signature.py`) is naive right now: each payload is compared to the entire transcript. Timestamps are recovered but aren't verified to be sane.
-- The demodulator really, *really* should be windowed instead of creating an absolutely massive map spanning the entire sample vector
+- Many frames are dropped. Demodulation could clearly be doing better: frame and even pulse boundaries are often cleanly apparent in `pulse_energy.png` (run `--demod-plot` during extract). Frame sync, demod, basically everything important about the physical layer currently seems hamstrung by our waveform not having a header and poor normalization in `demodulator.py`'s `pulse_energy_map` routine. 
+- Frame sync during demodulation fails when the payload data is extremely regular. To avoid this case in practice we use a random bit mask in `modem.py`.
+- `extract` is untested for `PlaintextPayload`s. This path is important for experimentation towards improving demod. 
+- `extract` is very memory-inefficient: it loads and demodulates a recording's entire sample vector all at once, creating a massive pulse energy map. Demodulation should *really* be windowed instead.
+- `SignaturePayload` matching (`payload/signature.py`) is naive right now: each payload is compared to the entire transcript. Timestamps are recovered but aren't verified to be sane.
 - `modem.py` is serving a ton of different purposes right now, lots of hardcoding happens there, like the LDPC FEC construction. If we were being serious then transport layer logic would be split out of modem and we would use a real FEC library instead of this nonsense.
-- Demodulate fails sometimes when the payload data is extremely regular. This is a waveform issue. We avoid this using a random bit mask in `modem.py`

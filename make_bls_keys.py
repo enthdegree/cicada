@@ -21,7 +21,7 @@ def save_keypair(private_key_path: str, public_key_path: str, force: bool = Fals
 	except Exception: pass
 
 def main():
-	ap = argparse.ArgumentParser(description="Generate and save a BLS keypair (min-sig, pyblst).")
+	ap = argparse.ArgumentParser(description="Generate and save a BLS keypair (min-sig).")
 	ap.add_argument("--privkey", default="bls_privkey.bin", help="Private key output path (default: bls_privkey.bin)")
 	ap.add_argument("--pubkey", default="bls_pubkey.bin", help="Public key output path (default: bls_pubkey.bin)")
 	ap.add_argument("--force", action="store_true", help="Overwrite existing files")

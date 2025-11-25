@@ -49,13 +49,17 @@ def load_markdown_transcript(path: Path):
 	return "\n".join(lines)
 
 def run_verification(payload_cls, args: argparse.Namespace, frames_csv: Path, output_md: Path):
-	print(f"[verification] loading payloads from {frames_csv}")
+	print(f"[verification] Loading payloads from {frames_csv}")
 	l_payloads, l_payload_start_sam = payload_cls.load_csv(frames_csv)
 	l_payloads, l_payload_start_sam = payload_cls.filter_payloads(
 		l_payloads,
 		l_payload_start_sam,
 		ascii_threshold=args.nonascii_discard_threshold,
 	)
+	if not len(l_payloads):
+		print('[verification] No payloads found. Not producing an annotation.')
+		return
+
 	payload_kwargs = vars(args)
 	if payload_cls.requires_bls_keys and "bls_pubkey" in payload_kwargs:
 		payload_kwargs["bls_pubkey_bytes"] = interface.load_bls_pubkey(args.bls_pubkey)
@@ -75,9 +79,9 @@ def run_verification(payload_cls, args: argparse.Namespace, frames_csv: Path, ou
 	else:
 		from faster_whisper import WhisperModel
 
-		print("[verification] loading Whisper model...")
+		print("[verification] Loading Whisper model...")
 		model = WhisperModel(args.model_size, compute_type="float32")
-		print(f"[verification] loaded {len(l_payloads)} payloads, transcribing {args.input_wav}")
+		print(f"[verification] Loaded {len(l_payloads)} payloads, transcribing {args.input_wav}")
 		l_chunks, wav_fs_Hz = wav_to_transcript_chunks(
 			args.input_wav,
 			model,
@@ -98,4 +102,4 @@ def run_verification(payload_cls, args: argparse.Namespace, frames_csv: Path, ou
 
 	annotated_md += write_appendix_md(l_payloads, l_payload_start_sam, 44100.0)
 	output_md.write_text(annotated_md, encoding="utf-8")
-	print(f"[verification] wrote {output_md}")
+	print(f"[verification] Wrote {output_md}")

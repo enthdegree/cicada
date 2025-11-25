@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 """Top-level CLI dispatcher for cicada tools."""
-from __future__ import annotations
-
 import argparse
 import importlib
 
