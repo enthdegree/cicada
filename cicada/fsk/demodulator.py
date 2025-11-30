@@ -29,6 +29,19 @@ class FSKDemodulator:
 		self.wf = wf
 		self.plot_dir = Path(plot_dir) if plot_dir else None
 		self.discard_duplicates = discard_duplicates
+		self._init_header_match()
+
+	def _init_header_match(self):
+		self.header_pulse_idx = None
+		self.header_col_offsets = None
+		self.header_symbols = 0
+		hbits = np.asarray(self.wf.header_bits, dtype=int)
+		if hbits.size == 0: return
+		hsym = self.wf.bits_to_symbols(hbits)
+		self.header_symbols = len(hsym)
+		self.header_col_offsets = np.arange(self.header_symbols) * self.pulse_frac
+		col_idx = np.arange(self.header_symbols) % self.wf.hop_factor
+		self.header_pulse_idx = self.wf.mod_table[hsym, col_idx]
 		
 	@staticmethod 
 	def _hankel(x: np.ndarray, win: int, step: int = 1) -> np.ndarray:
@@ -50,11 +63,11 @@ class FSKDemodulator:
 		M /= M.mean(axis=1, keepdims=1) + 1e-12
 		return M
 
-	def symbol_energy_map(self, Ep: np.ndarray, start: int) -> np.ndarray:
+	def symbol_energy_map(self, Ep: np.ndarray, start: int, n_symbols: int | None = None) -> np.ndarray:
 		"""Assuming a frame at col `start` of Ep, gather the frame's symbol
 		likelihoods according to the hopping pattern.
 		Returns (mod_order, spf)."""
-		spf = self.wf.symbols_per_frame
+		spf = n_symbols or (self.wf.symbols_per_frame + self.header_symbols)
 		pfrac = self.pulse_frac
 		last_col = start + (spf-1)*pfrac
 		if Ep.shape[1] < last_col:
@@ -75,33 +88,38 @@ class FSKDemodulator:
 		mP = np.exp(mZ - Zmax) 
 		mP /= np.sum(mP, axis=0, keepdims=True) # Normalized symbol probabilities 
 		ll = np.log(mP) # Symbol log-likelihoods
+		if self.header_symbols:
+			syms = syms[self.header_symbols:]
+			ll = ll[:, self.header_symbols:]
 		bit_llrs = None
 		if(self.wf.bits_per_symbol == 1): bit_llrs = ll[0,:].ravel()-ll[1,:].ravel() 
 		else: warning("Only 1-bit-per-symbol demod is supported right now. Skipping bit LLR computation.")
 		return FSKDemodulatorResult(pulse_map_idx=start, start_idx=start_idx, syms=syms, sym_log_likelihoods=ll, bit_llrs=bit_llrs)
 
-	def frame_energy_map(self, Ep: np.ndarray) -> np.ndarray:
+	def frame_energy_map(self, Ep: np.ndarray, header_weight=100) -> np.ndarray:
 		"""Given a map of pulse energies, find the vector Ef where Ef[i] is 
 		the max-likelihood frame energy assuming it started at col `start` of Ep.
 		"""
-		sym_per_frame = self.wf.symbols_per_frame
+		sym_per_frame = self.wf.symbols_per_frame + self.header_symbols
 		pfrac = self.pulse_frac
 		frame_cols = sym_per_frame * pfrac
 		n_off = max(1, Ep.shape[1] - frame_cols + 1)
 		Ef = np.empty(n_off)
 		for ic in range(n_off):
-			Es = self.symbol_energy_map(Ep, ic)
+			Es = self.symbol_energy_map(Ep, ic, n_symbols=sym_per_frame)
 			Ef[ic] = np.sum(np.max(Es, axis=0))
+			if self.header_pulse_idx is not None:
+				Ef[ic] += header_weight*np.sum(Ep[self.header_pulse_idx, ic + self.header_col_offsets])
 		return Ef
 
 	def frame_search(self, x: np.ndarray) -> list[FSKDemodulatorResult]:
-		"""Search for and demodulate frames in a sample vector.
+		"""Search for and demodulate frames in a sample vector wihtout dependence on header.
 		"""
 		pfrac = self.pulse_frac
 		step = int(round(self.wf.samples_per_pulse / pfrac))
 		Ep = self.pulse_energy_map(x, step=step) 
 		Ef = self.frame_energy_map(Ep) 
-		sym_per_frame = self.wf.symbols_per_frame
+		sym_per_frame = self.wf.symbols_per_frame + self.header_symbols
 		win_len_cols = int(round(self.frame_search_win * sym_per_frame * pfrac))
 		win_step_cols = int(round(self.frame_search_win_step * sym_per_frame * pfrac))
 		l_dr = []

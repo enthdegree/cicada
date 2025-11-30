@@ -25,6 +25,7 @@ class FSKParameters:
 	bw_Hz: float = 3000.0
 	hop_factor: int = 63
 	symbols_per_frame: int = 1024
+	header_len_bits: int = 32
 	mod_table_fn: Callable[[Any], Any] = partial(default_mod_table, pattern=16)
 	pulse_window_fn: Callable[[int], np.ndarray] = periodic_hann
 
@@ -48,6 +49,9 @@ class FSKWaveform:
 		self.n_pulses = self.mod_order * self.hop_factor
 		self.make_pulse_bank()
 		self.mod_table = self.mod_table_fn(self)
+
+		rng = np.random.default_rng(0)
+		self.header_bits = rng.integers(0, 2, size=self.header_len_bits)
 
 	def make_pulse_bank(self):
 		spp = self.samples_per_pulse
@@ -82,8 +86,8 @@ class FSKWaveform:
 		expected_bits = self.symbols_per_frame * self.bits_per_symbol
 		if len(bits) != expected_bits:
 			raise ValueError(f"modulate_frame expects {expected_bits} bits (got {len(bits)})")
+		bits = np.concatenate([self.header_bits, bits])
 		syms = self.bits_to_symbols(bits)
 		mod_table_col_idx = np.arange(len(syms)) % self.hop_factor
 		pidx = self.mod_table[syms, mod_table_col_idx]
-		syms_modulated = self.pulses_cos[pidx,:]
-		return syms_modulated.reshape(-1)
+		return self.pulses_cos[pidx,:].reshape(-1)
