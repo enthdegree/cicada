@@ -4,6 +4,7 @@ import argparse
 from argparse import ArgumentParser, HelpFormatter
 from functools import partial
 from pathlib import Path
+import base64
 import blst
 
 from cicada.fsk.waveform import FSKParameters, FSKWaveform, default_mod_table
@@ -129,7 +130,7 @@ def build_sign_parser() -> argparse.ArgumentParser:
 	add_modem_flags(parser)
 	parser.add_argument("--model-size", default="medium.en", help="Whisper model size.")
 	parser.add_argument("--window-sec", type=float, default=10.0, help="Transcription window length (s).")
-	parser.add_argument("--overlap-sec", type=float, default=5.0, help="Transcription window overlap (s).")
+	parser.add_argument("--overlap-sec", type=float, default=3.0, help="Transcription window overlap (s).")
 	parser.add_argument("--mic-blocksize", type=int, default=1024, help="Audio blocksize for microphone capture.")
 	parser.add_argument(
 		"--signer-transcript",
@@ -140,8 +141,9 @@ def build_sign_parser() -> argparse.ArgumentParser:
 		help="Optional path to log raw transcript chunks (default: out/signer_transcript.md).",
 	)
 	parser.add_argument("--header-message", default="q3q.net", help="Header message for SignaturePayloads.")
-	parser.add_argument("--bls-privkey", type=Path, default=Path("bls_privkey.bin"), help="Path to BLS private key.")
-	parser.add_argument("--bls-pubkey", type=Path, default=Path("bls_pubkey.bin"), help="Path to BLS public key.")
+	parser.add_argument("--bls-privkey", type=Path, default=Path("bls_privkey.b64"), help="Path to BLS private key (base64).")
+	parser.add_argument("--bls-pubkey", type=Path, default=Path("bls_pubkey.b64"), help="Path to BLS public key (base64).")
+	parser.add_argument("--mic-device", default=None, help="sounddevice input device (id or name) to use for microphone capture.")
 	return parser
 
 def build_extract_parser() -> argparse.ArgumentParser:
@@ -201,7 +203,7 @@ def build_verify_parser() -> argparse.ArgumentParser:
 	parser.add_argument("--model-size", default="medium.en", help="Whisper model size to use for transcription (signature payloads only).")
 	parser.add_argument("--window-sec", type=float, default=20.0, help="Transcription window length in seconds.")
 	parser.add_argument("--overlap-sec", type=float, default=16.0, help="Transcription window overlap in seconds.")
-	parser.add_argument("--bls-pubkey", type=Path, default=Path("bls_pubkey.bin"), help="BLS public key for SignaturePayload verification.")
+	parser.add_argument("--bls-pubkey", type=Path, default=Path("bls_pubkey.b64"), help="BLS public key for SignaturePayload verification (base64).")
 	parser.add_argument("--nonascii-discard-threshold", type=int, default=0, help="Max non-ASCII characters allowed in payload content before discarding.")
 	return parser
 
@@ -223,14 +225,14 @@ def build_modem(args, plot_dir: Path):
 	return modem, wf, demod
 
 def load_bls_keypair(priv_path: Path, pub_path: Path):
-	with open(priv_path, "rb") as f:
-		priv_bytes = f.read()
-	with open(pub_path, "rb") as f:
-		pub_bytes = f.read()
+	priv_text = priv_path.read_text(encoding="ascii").strip()
+	pub_text = pub_path.read_text(encoding="ascii").strip()
+	priv_bytes = base64.b64decode(priv_text)
+	pub_bytes = base64.b64decode(pub_text)
 	secret = blst.SecretKey()
 	secret.from_bendian(priv_bytes)
 	return secret, pub_bytes
 
 def load_bls_pubkey(pub_path: Path) -> bytes:
-	with open(pub_path, "rb") as f:
-		return f.read()
+	pub_text = pub_path.read_text(encoding="ascii").strip()
+	return base64.b64decode(pub_text)

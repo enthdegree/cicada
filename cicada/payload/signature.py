@@ -241,7 +241,7 @@ class SignaturePayload(Payload):
 		ts_str = time.ctime(self.header.timestamp)
 		return (
 			f"[{slug}]: Payload at timestamp {ts_str} matches "
-			f"{self.header.word_count} words near {start_desc}"
+			f"{self.header.word_count} words starting near {start_desc}"
 			f"{f' ({start_sec:.2f} sec)' if start_sec is not None else ''}. "
 			f"Header message: {self.header.message}"
 		)

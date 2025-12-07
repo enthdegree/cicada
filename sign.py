@@ -3,7 +3,6 @@
 import argparse
 import queue
 import threading
-from pathlib import Path
 
 import sounddevice as sd
 from faster_whisper import WhisperModel
@@ -28,7 +27,7 @@ def run(args: argparse.Namespace):
 	t_mic = threading.Thread(
 		target=speech.mic_worker,
 		args=(q_mic,),
-		kwargs={"mic_blocksize_sam": args.mic_blocksize},
+		kwargs={"mic_blocksize_sam": args.mic_blocksize, "mic_device": args.mic_device},
 		daemon=True,
 	)
 	transcript_writer = None

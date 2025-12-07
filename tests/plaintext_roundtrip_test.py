@@ -18,10 +18,10 @@ from cicada.fsk.demodulator import FSKDemodulatorParameters, FSKDemodulator
 # --- configurable options ---------------------------------------------------
 USE_LDPC = True
 USE_BIT_MASK = True
-SAMPLE_SNR_DB = 10  # set to None for noiseless generation
+SAMPLE_SNR_DB = -10  # recording's sample SNR. set to None for noiseless generation
 NOISE_SEED = 0
 FRAME_GAP_SEC = 0.12
-PRE_PAD_SEC = 0.0
+PRE_PAD_SEC = 0.1
 POST_PAD_SEC = 0.1
 PLAINTEXT_LEN = 128
 N_PAYLOADS = 5

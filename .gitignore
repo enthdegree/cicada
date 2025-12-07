@@ -9,6 +9,7 @@
 *.so
 *.bls
 *.bin
+*.b64
 archive/
 out/
 refs/

@@ -11,7 +11,7 @@ from faster_whisper.transcribe import Segment, TranscriptionInfo
 whisper_model_fs_Hz = 16e3 # All Whisper models are trained on 16 kHz samples
 
 @dataclass
-class WhisperTranscriptionChunk: 
+class WhisperTranscriptionChunk:
 	seg_iter: Iterator[Segment] # Iterable of whisper model segments
 	info: TranscriptionInfo # Whisper model transcript info
 	idx: int = -1 #  (if applicable) Sample index of the .wav file where this chunk started
@@ -27,7 +27,7 @@ def load_wav(path):
 		samples_for_model = resample_poly(samples_for_model, up, down)
 	return samples_for_model, wav_fs_Hz
 
-def mic_worker(q_audio, mic_blocksize_sam=1024): # Microphone sample producer
+def mic_worker(q_audio, mic_blocksize_sam=1024, mic_device=None): # Microphone sample producer
 	def _callback(indata, frames, time_info, status):
 		if status: print("[mic worker]", status)
 		mono = indata.mean(axis=1).copy()
@@ -37,7 +37,8 @@ def mic_worker(q_audio, mic_blocksize_sam=1024): # Microphone sample producer
 		channels=1,
 		blocksize=mic_blocksize_sam,
 		dtype="float32",
-		callback=_callback):
+		callback=_callback,
+		device=mic_device):
 		while True: time.sleep(0.1)
 
 def audio_transcript_worker(model, q_audio, q_tokens, window_sec=10.0, overlap_sec=5.0, debug=True, transcript_writer=None): # Audio transcription producer
@@ -80,7 +81,7 @@ def audio_transcript_worker(model, q_audio, q_tokens, window_sec=10.0, overlap_s
 			if transcript_writer is not None:
 				transcript_writer.write_chunk(str_transcript_raw, timestamp=time.time())
 			q_tokens.put(str_transcript_raw)
-			if debug: print("[transcript worker] published transcript chunk")
+			if debug: print(f"[transcript worker] published transcript chunk: {str_transcript_raw}")
 
 class TranscriptLogger:
 	"""Append-only markdown transcript logger."""

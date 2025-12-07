@@ -87,7 +87,7 @@ class FSKDemodulator:
 		Zmax = np.max(mZ, axis=0, keepdims=True)
 		mP = np.exp(mZ - Zmax) 
 		mP /= np.sum(mP, axis=0, keepdims=True) # Normalized symbol probabilities 
-		ll = np.log(mP) # Symbol log-likelihoods
+		ll = np.log(mP + 1e-12) # Symbol log-likelihoods
 		if self.header_symbols:
 			syms = syms[self.header_symbols:]
 			ll = ll[:, self.header_symbols:]
@@ -158,10 +158,10 @@ class FSKDemodulator:
 		plt.savefig(plot_dir / "pulse_energy.png", dpi=300, bbox_inches="tight")
 
 		plt.figure(figsize=(32,4)) # Ef: 1D frame energy
-		plt.plot(Ef)
+		plt.plot(np.log10(np.maximum(Ef, 1e-12))) # avoid log10(0) while preserving shape
 		for dr in l_dr: # Line markers for detected frames
 			plt.axvline(dr.pulse_map_idx, color="red", linestyle="--", linewidth=1.8)
-		plt.title("Ef (frame energy)")
+		plt.title("log(Ef) (frame energy)")
 		plt.xlabel("start col")
 		plt.ylabel("score")
 		plt.savefig(plot_dir / "frame_energy.png", dpi=300, bbox_inches="tight")

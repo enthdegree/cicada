@@ -16,6 +16,11 @@ We aim for 10x this rate but may have better channel conditions: communication b
 
 # Application details 
 
+## `make_bls_keys.py`: Generate a random BLS keypair
+This generates a random BLS public/private keypair for short 48-byte signatures.
+The public key is 96 bytes.
+This document is a helpful resource: https://gist.github.com/paulmillr/18b802ad219b1aee34d773d08ec26ca2  
+
 ## `cicada.py sign`: Signer (transmit-side) 
 
 Speech recognition (some Whisper model[5]) goes transcribing a rolling window of text every few seconds (configurable, defaults to once per ~5s).
