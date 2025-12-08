@@ -6,7 +6,7 @@
 
 Let's acoustically imprint speech in real-time with evidence it is not falsified. Evidence it is not edited or AI generated, for example. We (the signers) will transcribe the last window of speech we hear into English, digitally sign the transcript, then broadcast the signature as sound. 
 
-Now any sufficiently high-fidelity audio recording contains within it our attestation of the words we heard moments ago, that is, evidence the words are not falsified.[1]
+Now any sufficiently high-fidelity audio recording contains within it our attestation of the words we heard moments ago. That is, evidence the words are not falsified.[1]
 Anyone who posesses such a recording and our BLS public key can extract our signatures from it and validate they match the recording.  
 
 We stress two features:
