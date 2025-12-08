@@ -51,7 +51,6 @@ python3 ./make_bls_keys.py
 `cicada.py` is the top-level interface to cicada's individual tools. 
 By default cicada looks for your public and private keys as base64-encoded binary data at `./bls_privkey.b64` `./bls_pubkey.b64` (point it to the right location with `--bls-pubkey` `--bls-privkey`). 
 By default output files are put in `./out/`.
-For any routine that involves extracting frames from recorded audio, try adding the `--demod-plot` flag.
 
 1. `cicada.py sign`: Continuously transcribe a rolling window of mic audio and play signatures through the speaker.
 	```bash
